@@ -2,86 +2,290 @@
 
 var canvas;
 var context;
-var img;
-var position = {x: 0, y: 0};
-var dragging = null;
-  // null or {origin: {x: ..., y: ...}, current: {x: ..., y: ...}}
+
+// the data to be synced: an array of items
+var items = [];
+// each item must be of the form
+// { imgurl: <a string>
+// , pos: {x: ..., y: ...}
+// , selected: <a bool>
+// , locked: <a bool>
+// }
+
+// image data,
+// dictionary from urls to image objects
+// (each image object gets an extra "loaded" attribute when loaded)
+var images = {};
+
+// last known mouse position as {x: ..., y: ...}
+// or null (if mouse is not pressed or outside the canvas)
+var lastDragPos = null;
+
+// are some items currently being dragged?
+var dragging = false;
+
 
 function onLoad() {
-  console.log("workssxxxx");
-  
-  canvas = document.getElementById("datcanvas");
+  canvas = document.getElementById("bigcanvas");
   context = canvas.getContext("2d");
-  img = new Image();
-  img.src = "images/test.png";
-  img.onload = function() {
-    console.log("loaded");
-    updateImage();
-  };
 
+  // input handlers
   canvas.onmousedown = onMouseDown;
   canvas.onmousemove = onMouseMove;
   canvas.onmouseout = onMouseOut;
   canvas.onmouseup = onMouseUp;
   window.onkeydown = onKeyDown;
+
+  // test sync data
+  newData(JSON.stringify(
+    [ {imgurl: "images/test.png", pos: {x: 10, y: 20}, selected: false, locked: false}
+    , {imgurl: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Face-grin.svg", pos: {x: 200, y: 100}, selected: false, locked:false}
+    , {imgurl: "images/face.svg", pos: {x: 100, y: 100}, selected: true, locked:false}
+    ] ));
 }
 
-function updateImage() {
+function repaint() {
+  console.log("repainting");
   context.clearRect(0, 0, canvas.width, canvas.height);
-  context.globalAlpha = 1.0;
-  context.drawImage(img, position.x, position.y);
-  if (dragging != null) {
-    context.globalAlpha = 0.5;
-    var dx = dragging.current.x - dragging.origin.x;
-    var dy = dragging.current.y - dragging.origin.y;
-    context.drawImage(img, position.x + dx, position.y + dy);
-  }
+  items.forEach(drawItem);
 }
+
+// input handling
 
 function onMouseDown(e) {
-}
-function onMouseMove(e) {
+  var pos = eventCoordinates(e);
   if (e.buttons==1) {
-    var mousePos = {x: e.clientX, y: e.clientY};
-    if (dragging == null) {
-      console.log("starting drag");
-      dragging = {origin: mousePos, current: mousePos};
+    lastDragPos = {x: pos.x, y: pos.y};
+    var item = itemAt(pos.x, pos.y);
+    if (item != null && item.locked == true) {
+      item = null;
+    }
+    if (!e.shiftKey) {
+      if (item == null || item.selected != true) {
+        deselectAll();
+        selectItem(item);
+      }
     }
     else {
-      dragging.current = mousePos;
+      toggleSelected(item);
     }
-    updateImage();
+    repaint();
+  }
+  else {
+    finishDragging();
+  }
+}
+function onMouseMove(e) {
+  var pos = eventCoordinates(e);
+  if (e.buttons==1) {
+    if (lastDragPos != null) {
+      var selected = selectedItems();
+      if (selected.length > 0) {
+        dragging = true;
+        var dx = pos.x - lastDragPos.x;
+        var dy = pos.y - lastDragPos.y;
+        selected.forEach(moveItem(dx, dy));
+      }
+      repaint();
+    }
+    lastDragPos = {x: pos.x, y: pos.y};
   }
 }
 function onMouseOut(e) {
-  if (dragging) {
-    abortDragging();
-  }
+  finishDrag();
 }
 function onMouseUp(e) {
-  if (dragging != null) {
-    finishDragging();
+  if (e.buttons==1) {
+    dragging = true;
+  }
+  else {
+    finishDrag();
   }
 }
 
 function onKeyDown(e) {
   if (e.key=="Escape") {
     console.log("escape");
-    if (dragging != null) {
-      abortDragging();
-    }
   }
 }
 
-function abortDragging() {
-  dragging = null;
-  updateImage();
+// convert client coordinates of an event to
+// canvas-relative coordinates (as for drawing)
+// TODO: pass in the event?
+function eventCoordinates(e) {
+  return { x: e.clientX - canvas.clientLeft
+         , y: e.clientY - canvas.clientTop };
 }
 
-function finishDragging() {
+function finishDrag() {
+  if (dragging != true) {
+    return;
+  }
   console.log("finishing drag");
-  position.x += dragging.current.x - dragging.origin.x;
-  position.y += dragging.current.y - dragging.origin.y;
-  dragging = null;
-  updateImage();
+  dragging = false;
+  // TODO: send sync data
+}
+
+// add an image to the dictionary and load it's data
+function addImage(url) {
+  var img = new Image();
+  img.onload = function() {
+    console.log("loaded image");
+    img.loaded = true;
+    sortItems();
+    repaint();
+  }
+  img.src = url;
+  images[url] = img;
+}
+
+// add image if missing
+function enshureItemImage(item) {
+  if (images[item.imgurl] == null) {
+    addImage(item.imgurl);
+  }
+}
+
+// add item to items array (and also return it)
+function addItem(imgurl, pos) {
+  var item =
+    { imgurl: imgurl
+    , pos: {x: pos.x, y: pos.y}
+    , selected: false
+    , locked: false };
+  items.push(item);
+  enshureItemImage(item);
+  sortItems();
+  return item;
+}
+
+// image of an item or null (if not yet loaded)
+function itemImage(item) {
+  var img = images[item.imgurl];
+  if (img.loaded == true) {
+    return img;
+  }
+  else {
+    return null;
+  }
+}
+
+// size of an item as {w: ..., h: ...}
+function itemSize(item) {
+  var img = itemImage(item);
+  if (img != null) {
+    return {w: img.width, h: img.height};
+  }
+  else {
+    // default size
+    return {w: 50, h: 50}
+  }
+}
+
+// a number representing the size of the item
+// (for sorting by size)
+function itemSizeMeasure(item) {
+  var size = itemSize(item);
+  return size.w * size.h;
+}
+
+function drawItem(item) {
+  var img = itemImage(item);
+  var size = itemSize(item);
+  if (img != null) {
+    context.drawImage(img, item.pos.x, item.pos.y);
+  }
+  else {
+    context.fillStyle="grey";
+    context.fillRect(item.pos.x, item.pos.y, size.w, size.h);
+  }
+  if (item.selected == true) {
+    context.strokeStyle="yellow";
+    context.strokeRect(item.pos.x, item.pos.y, size.w, size.h);
+  }
+}
+
+// called when new sync data is recieved
+function newData(json) {
+  var newItems = JSON.parse(json);
+  // TODO: check that newItems is an array of items
+  console.log("newItems: " + newItems);
+  items = newItems;
+  items.forEach(enshureItemImage);
+  sortItems();
+  repaint();
+}
+
+// utility function for sorting
+function comparing(feature) {
+  return function(a, b) {
+      return feature(b) - feature(a);
+    };
+}
+
+// sort item array by size
+function sortItems() {
+  items.sort(comparing(itemSizeMeasure));
+}
+
+// array of only the currently selected items
+function selectedItems() {
+  return items.filter(function(item) {
+      return item.selected;
+    });
+}
+
+function moveItem(dx, dy) {
+  return function(item) {
+    item.pos.x += dx;
+    item.pos.y += dy;
+  };
+}
+
+// the foremost item covering the given point,
+// or null
+function itemAt(x, y) {
+  // search items from front to back
+  var i;
+  for (i = items.length-1; i>=0; i--) {
+    var item = items[i];
+    if (itemCovers(item, x, y)) {
+      return item;
+    }
+  }
+  return null;
+}
+
+// does the item contain the point?
+function itemCovers(item, x, y) {
+  var size = itemSize(item);
+  var x_rel = x - item.pos.x;
+  var y_rel = y - item.pos.y;
+  if ( x_rel < 0 || x_rel >= size.w ||
+       y_rel < 0 || y_rel >= size.h ) {
+    return false;
+  }
+  // I would like to check the alpha value of the items image now,
+  // but this is forbidden for images from other domains...
+  return true;
+}
+
+// selecting items
+
+function deselectAll() {
+  items.forEach(function(item) {item.selected = false;});
+}
+
+function selectItem(item) {
+  if (item == null) return;
+  if (!item.locked) {
+    item.selected = true;
+  }
+}
+
+function toggleSelected(item) {
+  if (item == null) return;
+  if (!item.locked) {
+    item.selected = !item.selected;
+  }
 }
