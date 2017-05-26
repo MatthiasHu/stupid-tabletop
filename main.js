@@ -32,6 +32,7 @@ function onLoad() {
 
   // input handlers
   canvas.onmousedown = onMouseDown;
+  canvas.ondblclick = onDblClick;
   canvas.onmousemove = onMouseMove;
   canvas.onmouseout = onMouseOut;
   canvas.onmouseup = onMouseUp;
@@ -74,6 +75,11 @@ function onMouseDown(e) {
   else {
     finishDragging();
   }
+}
+function onDblClick(e) {
+  var pos = eventCoordinates(e);
+  var item = itemAt(pos.x, pos.y);
+  toggleLocked(item);
 }
 function onMouseMove(e) {
   var pos = eventCoordinates(e);
@@ -292,6 +298,14 @@ function toggleSelected(item) {
   if (!item.locked) {
     item.selected = !item.selected;
   }
+}
+
+function toggleLocked(item) {
+  if (item == null) return;
+  item.locked = !item.locked;
+  item.selected = !item.locked;
+  repaint();
+  sendSyncData();
 }
 
 function cloneItem(item) {
