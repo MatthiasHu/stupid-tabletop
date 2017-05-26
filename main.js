@@ -22,6 +22,7 @@ var images = {};
 var lastDragPos = null;
 
 // are some items currently being dragged?
+// (then send sync data on mouse up)
 var dragging = false;
 
 
@@ -45,7 +46,6 @@ function onLoad() {
 }
 
 function repaint() {
-  console.log("repainting");
   context.clearRect(0, 0, canvas.width, canvas.height);
   items.forEach(drawItem);
 }
@@ -107,14 +107,18 @@ function onKeyDown(e) {
   if (e.key=="Escape") {
     console.log("escape");
   }
+  if (e.key=="c") {
+    cloneSelected();
+  }
 }
 
 // convert client coordinates of an event to
 // canvas-relative coordinates (as for drawing)
-// TODO: pass in the event?
 function eventCoordinates(e) {
-  return { x: e.clientX - canvas.clientLeft
-         , y: e.clientY - canvas.clientTop };
+  var pos =
+    { x: e.clientX - canvas.offsetLeft
+    , y: e.clientY - canvas.offsetTop };
+  return pos;
 }
 
 function finishDrag() {
@@ -123,7 +127,7 @@ function finishDrag() {
   }
   console.log("finishing drag");
   dragging = false;
-  // TODO: send sync data
+  sendSyncData();
 }
 
 // add an image to the dictionary and load it's data
@@ -288,4 +292,22 @@ function toggleSelected(item) {
   if (!item.locked) {
     item.selected = !item.selected;
   }
+}
+
+function cloneItem(item) {
+  var clone = addItem(item.imgurl, {x: item.pos.x, y: item.pos.y});
+  moveItem(10, 10)(clone);
+  selectItem(clone);
+  item.selected = false;
+}
+
+function cloneSelected() {
+  selectedItems().forEach(cloneItem);
+  selectedItems().forEach(moveItem(10, 10));
+  repaint();
+  sendSyncData();
+}
+
+function sendSyncData() {
+  // TODO: this
 }
