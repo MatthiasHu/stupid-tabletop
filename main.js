@@ -116,6 +116,9 @@ function onKeyDown(e) {
   if (e.key=="c") {
     cloneSelected();
   }
+  if (e.key=="Delete" || e.key=="Backspace") {
+    deleteSelected();
+  }
 }
 
 // convert client coordinates of an event to
@@ -244,6 +247,11 @@ function selectedItems() {
       return item.selected;
     });
 }
+function notSelectedItems() {
+  return items.filter(function(item) {
+      return !item.selected;
+    });
+}
 
 function moveItem(dx, dy) {
   return function(item) {
@@ -318,6 +326,12 @@ function cloneItem(item) {
 function cloneSelected() {
   selectedItems().forEach(cloneItem);
   selectedItems().forEach(moveItem(10, 10));
+  repaint();
+  sendSyncData();
+}
+
+function deleteSelected() {
+  items = notSelectedItems();
   repaint();
   sendSyncData();
 }
