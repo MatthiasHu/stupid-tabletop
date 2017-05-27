@@ -1,16 +1,31 @@
 <html>
 
 <head>
-<title>stupid tabletop</title>
 <meta charset="UTF-8"> 
+<title>stupid-tabletop</title>
 <script src="main.js" type="text/javascript"></script>
 </head>
 
-<body onload="onLoad()">
+<body onload="onLoad()" id="body"
+  style="display:flex; flex-direction:column; height:100%; margin:0px;">
+
+<div id="table-name-div"
+  style="display:flex; flex-direction:row; width:100%">
+<div style="margin-right:10px;">table name:</div>
+<input type=text id="table-name-text" style="flex:1;"></input>
+<input type=button id="table-name-button" value="connect"></input>
+</div>
+
+<div id="new-item-div"
+  style="display:flex; flex-direction:row; width:100%">
+<div style="margin-right:10px;">image url:</div>
+<input type=text id="new-item-text" style="flex:1;"></input>
+<input type=button id="new-item-button" value="add new item"></input>
+</div>
 
 <canvas id="bigcanvas"
-  width=1000 height=500
-  style="border: 1px solid black;"></canvas>
+  style="border: 0px solid black; width:100%; flex:1;">
+</canvas>
 
 </body>
 </html>

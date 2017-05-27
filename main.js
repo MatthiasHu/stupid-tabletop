@@ -3,6 +3,16 @@
 var canvas;
 var context;
 
+// UI elements
+var ui =
+  { body: null
+  , tableNameText: null
+  , tableNameButton: null
+  , newItemDiv: null
+  , newItemText: null
+  , newItemButton: null
+  }
+
 // the data to be synced: an array of items
 var items = [];
 // each item must be of the form
@@ -27,8 +37,23 @@ var dragging = false;
 
 
 function onLoad() {
-  canvas = document.getElementById("bigcanvas");
+  var get = function(id) {return document.getElementById(id);};
+
+  canvas = get("bigcanvas");
   context = canvas.getContext("2d");
+
+  ui.body = get("body");
+  ui.tableNameText = get("table-name-text");
+  ui.tableNameButton = get("table-name-button");
+  ui.newItemDiv = get("new-item-div");
+  ui.newItemText = get("new-item-text");
+  ui.newItemButton = get("new-item-button");
+
+  ui.newItemButton.onclick = onAddNewItem;
+
+  toggleNewItemDiv(false);
+
+  window.onresize = setCanvasResolution;
 
   // input handlers
   canvas.onmousedown = onMouseDown;
@@ -44,6 +69,13 @@ function onLoad() {
     , {imgurl: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Face-grin.svg", pos: {x: 200, y: 100}, selected: false, locked:false}
     , {imgurl: "images/face.svg", pos: {x: 100, y: 100}, selected: true, locked:false}
     ] ));
+}
+
+function setCanvasResolution() {
+  ui.body.style.display = "flex";
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  repaint();
 }
 
 function repaint() {
@@ -119,14 +151,17 @@ function onKeyDown(e) {
   if (e.key=="Delete" || e.key=="Backspace") {
     deleteSelected();
   }
+  if (e.key=="a") {
+    toggleNewItemDiv();
+  }
 }
 
 // convert client coordinates of an event to
 // canvas-relative coordinates (as for drawing)
 function eventCoordinates(e) {
   var pos =
-    { x: e.clientX - canvas.offsetLeft
-    , y: e.clientY - canvas.offsetTop };
+    { x: e.pageX - canvas.offsetLeft
+    , y: e.pageY - canvas.offsetTop };
   return pos;
 }
 
@@ -213,8 +248,10 @@ function drawItem(item) {
     context.fillRect(item.pos.x, item.pos.y, size.w, size.h);
   }
   if (item.selected == true) {
+    context.strokeStyle="black";
+    context.strokeRect(item.pos.x-0.5, item.pos.y-0.5, size.w+1, size.h+1);
     context.strokeStyle="yellow";
-    context.strokeRect(item.pos.x, item.pos.y, size.w, size.h);
+    context.strokeRect(item.pos.x-1.5, item.pos.y-1.5, size.w+3, size.h+3);
   }
 }
 
@@ -332,6 +369,25 @@ function cloneSelected() {
 
 function deleteSelected() {
   items = notSelectedItems();
+  repaint();
+  sendSyncData();
+}
+
+// hide or show new item line
+function toggleNewItemDiv(on) {
+  if (on==null) {
+    on = ui.newItemDiv.style.display == "none";
+  }
+  ui.newItemDiv.style.display = (on ? "flex" : "none");
+  setCanvasResolution();
+}
+
+// user clicked add new item button
+function onAddNewItem() {
+  var imgurl = ui.newItemText.value;
+  ui.newItemText.value = "";
+  toggleNewItemDiv(false);
+  addItem(imgurl, {x: 0, y: 0});
   repaint();
   sendSyncData();
 }
