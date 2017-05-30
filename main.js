@@ -62,7 +62,8 @@ function onLoad() {
   canvas.onmousemove = onMouseMove;
   canvas.onmouseout = onMouseOut;
   canvas.onmouseup = onMouseUp;
-  window.onkeydown = onKeyDown;
+  canvas.onkeydown = onKeyDown;
+  // (the canvas has a tabindex for onkeydown to work)
 
   // test sync data
   newData(JSON.stringify(
@@ -386,7 +387,7 @@ function onAddNewItem() {
   var imgurl = ui.newItemText.value;
   ui.newItemText.value = "";
   toggleNewItemDiv(false);
-  addItem(imgurl, {x: 0, y: 0});
+  addItem(imgurl, {x: 50, y: 50});
   repaint();
   sendSyncData();
 }
