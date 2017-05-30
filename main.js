@@ -53,6 +53,7 @@ function onLoad() {
 
   toggleNewItemDiv(false);
 
+  setCanvasResolution();
   window.onresize = setCanvasResolution;
 
   // input handlers
@@ -72,7 +73,6 @@ function onLoad() {
 }
 
 function setCanvasResolution() {
-  ui.body.style.display = "flex";
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
   repaint();
@@ -379,7 +379,6 @@ function toggleNewItemDiv(on) {
     on = ui.newItemDiv.style.display == "none";
   }
   ui.newItemDiv.style.display = (on ? "flex" : "none");
-  setCanvasResolution();
 }
 
 // user clicked add new item button
