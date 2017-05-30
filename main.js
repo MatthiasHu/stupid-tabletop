@@ -400,6 +400,11 @@ function toggleNewItemDiv(on) {
     on = ui.newItemDiv.style.display == "none";
   }
   ui.newItemDiv.style.display = (on ? "flex" : "none");
+  if (on==true) {
+    // give url field the focus,
+    // but do not let the current event propagate to it
+    setTimeout(function() {ui.newItemText.focus();}, 1);
+  }
 }
 
 // user clicked add new item button
