@@ -1,5 +1,9 @@
 "use strict";
 
+// address for stupid-sync connection
+var domain = "ws://stupidtabletop.ddns.net:39141";
+
+// canvas element and drawing context
 var canvas;
 var context;
 
@@ -11,6 +15,7 @@ var ui =
   , newItemDiv: null
   , newItemText: null
   , newItemButton: null
+  , notConnectedLabel: null
   }
 
 // the data to be synced: an array of items
@@ -35,6 +40,10 @@ var lastDragPos = null;
 // (then send sync data on mouse up)
 var dragging = false;
 
+// the websocket
+var socket = null;
+// null when there is no current connection or conntection attempt
+
 
 function onLoad() {
   var get = function(id) {return document.getElementById(id);};
@@ -48,7 +57,10 @@ function onLoad() {
   ui.newItemDiv = get("new-item-div");
   ui.newItemText = get("new-item-text");
   ui.newItemButton = get("new-item-button");
+  ui.notConnectedLabel = get("not-connected-label");
 
+  ui.tableNameButton.onclick = tryConnect;
+  ui.tableNameText.oninput = disconnect;
   ui.newItemButton.onclick = onAddNewItem;
 
   toggleNewItemDiv(false);
@@ -64,13 +76,6 @@ function onLoad() {
   canvas.onmouseup = onMouseUp;
   canvas.onkeydown = onKeyDown;
   // (the canvas has a tabindex for onkeydown to work)
-
-  // test sync data
-  newData(JSON.stringify(
-    [ {imgurl: "images/test.png", pos: {x: 10, y: 20}, selected: false, locked: false}
-    , {imgurl: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Face-grin.svg", pos: {x: 200, y: 100}, selected: false, locked:false}
-    , {imgurl: "images/face.svg", pos: {x: 100, y: 100}, selected: true, locked:false}
-    ] ));
 }
 
 function setCanvasResolution() {
@@ -258,9 +263,9 @@ function drawItem(item) {
 
 // called when new sync data is recieved
 function newData(json) {
+  if (json.length == 0) json = "[]";
   var newItems = JSON.parse(json);
   // TODO: check that newItems is an array of items
-  console.log("newItems: " + newItems);
   items = newItems;
   items.forEach(enshureItemImage);
   sortItems();
@@ -393,5 +398,61 @@ function onAddNewItem() {
 }
 
 function sendSyncData() {
-  // TODO: this
+  if (socket != null) {
+    socket.send(JSON.stringify(items));
+  }
+}
+
+function tryConnect() {
+  if (socket != null) {
+    disconnect();
+  }
+  var url = domain + "/stupid-tabletop/" + ui.tableNameText.value;
+  socket = new WebSocket(url);
+  socket.onclose = disconnect;
+  socket.onerror = disconnect;
+  socket.onopen = onConnected;
+  socket.onmessage = onMessage;
+}
+
+function onMessage(e) {
+  // read json string from the blob e.data
+  var reader = new FileReader();
+  reader.onload = function() {
+    newData(reader.result);
+  }
+  reader.onerror = function() {
+    console.log("error reading received blob");
+  }
+  reader.readAsText(e.data);
+}
+
+function onConnected() {
+  ui.notConnectedLabel.style.display = "none";
+  ui.tableNameButton.disabled = true;
+}
+
+function disconnect() {
+  if (socket != null && (isConnecting(socket) || isOpen(socket))) {
+    socket.close();
+  }
+  discardSocket();
+  ui.notConnectedLabel.style.display = "block";
+  ui.tableNameButton.disabled = false;
+}
+
+function isConnecting(socket) {
+  return socket.readySttate == WebSocket.CONNECTING;
+}
+function isOpen(socket) {
+  return socket.readySttate == WebSocket.OPEN;
+}
+
+function discardSocket() {
+  if (socket == null) return;
+  socket.onmessage = null;
+  socket.onopen = null;
+  socket.onclose = null;
+  socket.onerror = null;
+  socket = null;
 }
