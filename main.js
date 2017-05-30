@@ -76,6 +76,21 @@ function onLoad() {
   canvas.onmouseup = onMouseUp;
   canvas.onkeydown = onKeyDown;
   // (the canvas has a tabindex for onkeydown to work)
+
+  ui.tableNameText.value = tableNameFromURL();
+  tryConnect();
+}
+
+function tableNameFromURL() {
+  var table = "default";
+  var equations = window.location.search.substring(1).split("&");
+  equations.forEach(function(eq) {
+    var pair = eq.split("=");
+    if (pair[0] == "table") {
+      table = decodeURIComponent(pair[1]);
+    }
+  });
+  return table;
 }
 
 function setCanvasResolution() {
