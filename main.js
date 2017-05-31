@@ -3,6 +3,8 @@
 // address for stupid-sync connection
 var domain = "ws://stupidtabletop.ddns.net:39141";
 
+var scaleSensibility = 1.05;
+
 // canvas element and drawing context
 var canvas;
 var context;
@@ -23,9 +25,11 @@ var items = [];
 // each item must be of the form
 // { imgurl: <a string>
 // , pos: {x: ..., y: ...}
+// , scale: ...
 // , selected: <a bool>
 // , locked: <a bool>
 // }
+// (pos is in table coordinates)
 
 // image data,
 // dictionary from urls to image objects
@@ -33,12 +37,17 @@ var items = [];
 var images = {};
 
 // last known mouse position as {x: ..., y: ...}
+// (in table coordinates)
 // or null (if mouse is not pressed or outside the canvas)
 var lastDragPos = null;
 
 // are some items currently being dragged?
 // (then send sync data on mouse up)
 var dragging = false;
+
+// current view transformation (translation and scale)
+var transformation = {t: {x: 0, y: 0}, s: 1};
+// [table coords] ---(scaling)---(translation)--- [canvas coords]
 
 // the websocket
 var socket = null;
@@ -76,6 +85,7 @@ function onLoad() {
   canvas.onmouseup = onMouseUp;
   canvas.onkeydown = onKeyDown;
   // (the canvas has a tabindex for onkeydown to work)
+  canvas.onwheel = onWheel;
 
   ui.tableNameText.value = tableNameFromURL();
   tryConnect();
@@ -100,14 +110,20 @@ function setCanvasResolution() {
 }
 
 function repaint() {
+  context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
+  applyViewTransformation();
   items.forEach(drawItem);
+}
+function applyViewTransformation() {
+  context.translate(transformation.t.x, transformation.t.y);
+  context.scale(transformation.s, transformation.s);
 }
 
 // input handling
 
 function onMouseDown(e) {
-  var pos = eventCoordinates(e);
+  var pos = canvasToTable(eventCoordinates(e));
   if (e.buttons==1) {
     lastDragPos = {x: pos.x, y: pos.y};
     var item = itemAt(pos.x, pos.y);
@@ -130,12 +146,12 @@ function onMouseDown(e) {
   }
 }
 function onDblClick(e) {
-  var pos = eventCoordinates(e);
+  var pos = canvasToTable(eventCoordinates(e));
   var item = itemAt(pos.x, pos.y);
   toggleLocked(item);
 }
 function onMouseMove(e) {
-  var pos = eventCoordinates(e);
+  var pos = canvasToTable(eventCoordinates(e));
   if (e.buttons==1) {
     if (lastDragPos != null) {
       var selected = selectedItems();
@@ -161,6 +177,27 @@ function onMouseUp(e) {
     finishDrag();
   }
 }
+function onWheel(e) {
+  var pos = canvasToTable(eventCoordinates(e));
+  console.log(e.deltaX + " " + e.deltaY);
+  var count = e.deltaY;
+  var factor = 1;
+  for (; count>0; count--) {
+    factor /= scaleSensibility;
+  }
+  for (; count<0; count++) {
+    factor *= scaleSensibility;
+  }
+  var selected = selectedItems();
+  if (selected.length > 0) {
+    selected.forEach(scaleItem(factor));
+    repaint();
+    sendSyncData();
+  }
+  else {
+    onScale(factor, pos);
+  }
+}
 
 function onKeyDown(e) {
   if (e.key=="Escape") {
@@ -177,13 +214,25 @@ function onKeyDown(e) {
   }
 }
 
-// convert client coordinates of an event to
-// canvas-relative coordinates (as for drawing)
+// convert page coordinates of an event to
+// canvas-relative coordinates
 function eventCoordinates(e) {
   var pos =
     { x: e.pageX - canvas.offsetLeft
     , y: e.pageY - canvas.offsetTop };
   return pos;
+}
+
+// convert between canvas and table coordinates
+function canvasToTable(p) {
+  var t = transformation;
+  return { x: (p.x-t.t.x)/t.s
+         , y: (p.y-t.t.y)/t.s };
+}
+function tableToCanvas(p) {
+  var t = transformation;
+  return { x: p.x*t.s + t.t.x
+         , y: p.y*t.s + t.t.y };
 }
 
 function finishDrag() {
@@ -193,6 +242,17 @@ function finishDrag() {
   console.log("finishing drag");
   dragging = false;
   sendSyncData();
+}
+
+// scale the view by a factor
+// with a fixed reference point (in table coordinates)
+function onScale(factor, ref) {
+  var olds = transformation.s;
+  transformation.s *= factor;
+  var news = transformation.s;
+  transformation.t.x += ref.x * (olds-news);
+  transformation.t.y += ref.y * (olds-news);
+  repaint();
 }
 
 // add an image to the dictionary and load it's data
@@ -216,10 +276,11 @@ function enshureItemImage(item) {
 }
 
 // add item to items array (and also return it)
-function addItem(imgurl, pos) {
+function addItem(imgurl, pos, scale) {
   var item =
     { imgurl: imgurl
     , pos: {x: pos.x, y: pos.y}
+    , scale: scale
     , selected: false
     , locked: false };
   items.push(item);
@@ -242,12 +303,13 @@ function itemImage(item) {
 // size of an item as {w: ..., h: ...}
 function itemSize(item) {
   var img = itemImage(item);
+  var s = item.scale;
   if (img != null) {
-    return {w: img.width, h: img.height};
+    return {w: img.width*s, h: img.height*s};
   }
   else {
     // default size
-    return {w: 50, h: 50}
+    return {w: 50*s, h: 50*s}
   }
 }
 
@@ -262,7 +324,7 @@ function drawItem(item) {
   var img = itemImage(item);
   var size = itemSize(item);
   if (img != null) {
-    context.drawImage(img, item.pos.x, item.pos.y);
+    context.drawImage(img, item.pos.x, item.pos.y, size.w, size.h);
   }
   else {
     context.fillStyle="grey";
@@ -316,6 +378,15 @@ function moveItem(dx, dy) {
     item.pos.x += dx;
     item.pos.y += dy;
   };
+}
+function scaleItem(factor) {
+  return function(item) {
+    var oldSize = itemSize(item);
+    item.scale *= factor;
+    var newSize = itemSize(item);
+    item.pos.x += (oldSize.w-newSize.w)/2;
+    item.pos.y += (oldSize.h-newSize.h)/2;
+  }
 }
 
 // the foremost item covering the given point,
@@ -375,7 +446,10 @@ function toggleLocked(item) {
 }
 
 function cloneItem(item) {
-  var clone = addItem(item.imgurl, {x: item.pos.x, y: item.pos.y});
+  var clone = addItem(
+      item.imgurl
+    , {x: item.pos.x, y: item.pos.y}
+    , item.scale );
   moveItem(10, 10)(clone);
   selectItem(clone);
   item.selected = false;
@@ -412,7 +486,7 @@ function onAddNewItem() {
   var imgurl = ui.newItemText.value;
   ui.newItemText.value = "";
   toggleNewItemDiv(false);
-  addItem(imgurl, {x: 50, y: 50});
+  addItem(imgurl, {x: 50, y: 50}, 1);
   repaint();
   sendSyncData();
 }
