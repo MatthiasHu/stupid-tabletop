@@ -87,6 +87,9 @@ function onLoad() {
   // (the canvas has a tabindex for onkeydown to work)
   canvas.onwheel = onWheel;
 
+  // get key events right away
+  canvas.focus();
+
   ui.tableNameText.value = tableNameFromURL();
   tryConnect();
 }
@@ -179,15 +182,7 @@ function onMouseUp(e) {
 }
 function onWheel(e) {
   var pos = canvasToTable(eventCoordinates(e));
-  console.log(e.deltaX + " " + e.deltaY);
-  var count = e.deltaY;
-  var factor = 1;
-  for (; count>0; count--) {
-    factor /= scaleSensibility;
-  }
-  for (; count<0; count++) {
-    factor *= scaleSensibility;
-  }
+  var factor = Math.pow(scaleSensibility, -e.deltaY);
   if (e.shiftKey) {
     selectedItems().forEach(scaleItem(factor));
     repaint();
@@ -199,8 +194,8 @@ function onWheel(e) {
 }
 
 function onKeyDown(e) {
-  if (e.key=="Escape") {
-    console.log("escape");
+  if (e.key=="h") {
+    window.open("help.txt");
   }
   if (e.key=="c") {
     cloneSelected();

@@ -1,0 +1,77 @@
+stupid-tabletop help
+====================
+
+
+
+moving items
+------------
+
+Click and drag items to move them.
+The changes are automatically visible to everybody looking at the same table.
+
+Hold Shift and click to select multiple items.
+
+
+zooming in and out
+------------------
+
+Use the mouse wheel.
+To move the view, zoom out and then zoom in to another region.
+
+
+adding items
+------------
+
+Press C to clone selected items.
+
+Press A to add a new item with a new image.
+You can paste the URL of any image on the web in the "image url" line.
+If the item remains a grey square forever, the URL was not correct.
+
+
+deleting items
+--------------
+
+Press Del or Backspace to delete selected items.
+
+
+scaling items
+-------------
+
+Use the mouse wheel while holding Shift to scale selected items.
+
+
+locking items
+------------
+
+Locked items can not be selected, moved or scaled.
+Double click to lock or unlock an item.
+
+
+switching tables
+----------------
+
+Write any name in the "table name" line and hit "connect".
+Names can contain letters, number, '-', '_' and '/'.
+If the name was never used before, a new blank table is created.
+If "(not connected)" is shown forever, the table name may be invalid.
+
+Any changes made while "(not connected)" is shown will be lost.
+
+
+
+
+compatibility
+-------------
+
+Only tested with firefox so far.
+
+
+source code
+-----------
+
+The source code of the stupid-tabletop client can be found at:
+https://github.com/MatthiasHu/stupid-tabletop
+
+It uses the stupid-sync server. The code for that is at:
+https://github.com/MatthiasHu/stupid-sync
