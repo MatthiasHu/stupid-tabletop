@@ -188,9 +188,8 @@ function onWheel(e) {
   for (; count<0; count++) {
     factor *= scaleSensibility;
   }
-  var selected = selectedItems();
-  if (selected.length > 0) {
-    selected.forEach(scaleItem(factor));
+  if (e.shiftKey) {
+    selectedItems().forEach(scaleItem(factor));
     repaint();
     sendSyncData();
   }
