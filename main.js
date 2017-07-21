@@ -181,6 +181,7 @@ function onMouseUp(e) {
   }
 }
 function onWheel(e) {
+  e.preventDefault();
   var pos = canvasToTable(eventCoordinates(e));
   var factor = Math.pow(scaleSensibility, -e.deltaY);
   if (e.shiftKey) {
