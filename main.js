@@ -496,7 +496,7 @@ function tryConnect() {
   if (socket != null) {
     disconnect();
   }
-  var url = domain + "/stupid-tabletop/" + ui.tableNameText.value;
+  var url = domain + "/table-" + ui.tableNameText.value;
   socket = new WebSocket(url);
   socket.onclose = disconnect;
   socket.onerror = disconnect;
