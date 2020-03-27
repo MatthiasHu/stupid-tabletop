@@ -1,7 +1,7 @@
 "use strict";
 
 // address for stupid-sync connection
-var domain = "ws://monus.de:39141";
+var domain = "wss://monus.de/stupid-sync-entry";
 
 var scaleSensibility = 1.05;
 
