@@ -145,7 +145,7 @@ function onMouseDown(e) {
     repaint();
   }
   else {
-    finishDragging();
+    finishDrag();
   }
 }
 function onDblClick(e) {
@@ -173,10 +173,7 @@ function onMouseOut(e) {
   finishDrag();
 }
 function onMouseUp(e) {
-  if (e.buttons==1) {
-    dragging = true;
-  }
-  else {
+  if (e.buttons!=1) {
     finishDrag();
   }
 }
