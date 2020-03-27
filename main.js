@@ -277,7 +277,7 @@ function addImage(url) {
 }
 
 // add image if missing
-function enshureItemImage(item) {
+function ensureItemImage(item) {
   if (images[item.imgurl] == null) {
     addImage(item.imgurl);
   }
@@ -292,7 +292,7 @@ function addItem(imgurl, center, scale) {
     , selected: false
     , locked: false };
   items.push(item);
-  enshureItemImage(item);
+  ensureItemImage(item);
   sortItems();
   return item;
 }
@@ -354,7 +354,7 @@ function newData(json) {
   var newItems = JSON.parse(json);
   // TODO: check that newItems is an array of items
   items = newItems;
-  items.forEach(enshureItemImage);
+  items.forEach(ensureItemImage);
   sortItems();
   repaint();
 }
