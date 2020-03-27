@@ -249,6 +249,13 @@ function finishDrag() {
   }
   console.log("finishing drag");
   dragging = false;
+  var selected = selectedItems();
+  if (selected.length == 1) {
+    if (potentiallyPutOnPile(selected[0])) {
+      console.log("(put on pile)");
+    }
+  }
+  repaint();
   sendSyncData();
 }
 
@@ -325,7 +332,8 @@ function itemSize(item) {
 // (for sorting by size)
 function itemSizeMeasure(item) {
   var size = itemSize(item);
-  return size.w * size.h;
+  // Use rounded size to respect pilingCompatibleWith().
+  return Math.round(size.w) * Math.round(size.h);
 }
 
 function drawItem(item) {
@@ -473,6 +481,69 @@ function deleteSelected() {
   repaint();
   sendSyncData();
 }
+
+// piling related stuff
+
+function roundedItemSize(item) {
+  var s0 = itemSize(item);
+  return {w: Math.round(s0.w), h: Math.round(s0.h)};
+}
+
+// Two items can only go on the same pile
+// if they have the same rounded size.
+function hasRoundedSize(roundedSize, item) {
+  var s0 = roundedSize;
+  var s1 = roundedItemSize(item);
+  return s0.w == s1.w && s0.h == s1.h;
+}
+
+function expectedPileNeighbourPosition(item, d) {
+  var size = roundedItemSize(item)
+  var dx = size.w * 0.25 * d;
+  var dy = 0;
+  return {x: item.center.x + dx, y: item.center.y + dy};
+}
+
+function isPileNeighbour(item, d, tolerance) {
+  var size = roundedItemSize(item)
+  var expected = expectedPileNeighbourPosition(item, d);
+  return function(other) {
+    var c0 = item != other;
+    var c1 = hasRoundedSize(size, other);
+    var c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
+    var c3 = Math.abs(other.center.y - expected.y) < size.h * tolerance;
+    console.log("-- " + c0 + " " + c1 + " " + c2 + " " + c3);
+    return c0 && c1 && c2 && c3;
+  }
+}
+
+// Find left (d=-1) or right (d=1) neighbour in a pile.
+function findPileNeighbour(item, d, tolerance=0.01) {
+  var neighs = items.filter(isPileNeighbour(item, d, tolerance));
+  if (neighs.length == 0) {
+    return null;
+  }
+  else {
+    return neighs[0];
+  }
+}
+
+function potentiallyPutOnPile(item) {
+  var found = findPileNeighbour(item, -1, 0.25);
+  if (found == null) {
+    return false;
+  }
+  var current = found;
+  var next = findPileNeighbour(current, 1);
+  while (next != null) {
+    current = next;
+    next = findPileNeighbour(current, 1);
+  }
+  var topmost = current;
+  item.center = expectedPileNeighbourPosition(topmost, 1);
+  return true;
+}
+
 
 // hide or show new item line
 function toggleNewItemDiv(on) {
