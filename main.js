@@ -74,8 +74,9 @@ function onLoad() {
 
   toggleNewItemDiv(false);
 
-  setCanvasResolution();
-  window.onresize = setCanvasResolution;
+  centerViewOn({x: 0, y: 0})
+  onResize();
+  window.onresize = onResize;
 
   // input handlers
   canvas.onmousedown = onMouseDown;
@@ -106,10 +107,25 @@ function tableNameFromURL() {
   return table;
 }
 
+// Center the view on the origin of table coordinates,
+// using the current canvas size.
+function centerViewOn(p) {
+  var s = transformation.s;
+  transformation.t.x = canvas.width /2 - p.x*s;
+  transformation.t.y = canvas.height/2 - p.y*s;
+}
+
+function onResize() {
+  var oldCenter =
+    canvasToTable({x: canvas.width/2, y: canvas.height/2});
+  setCanvasResolution();
+  centerViewOn(oldCenter);
+  repaint();
+}
+
 function setCanvasResolution() {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
-  repaint();
 }
 
 function repaint() {
