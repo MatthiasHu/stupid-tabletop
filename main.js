@@ -24,12 +24,12 @@ var ui =
 var items = [];
 // each item must be of the form
 // { imgurl: <a string>
-// , pos: {x: ..., y: ...}
+// , center: {x: ..., y: ...}
 // , scale: ...
 // , selected: <a bool>
 // , locked: <a bool>
 // }
-// (pos is in table coordinates)
+// (center is in table coordinates)
 
 // image data,
 // dictionary from urls to image objects
@@ -284,10 +284,10 @@ function enshureItemImage(item) {
 }
 
 // add item to items array (and also return it)
-function addItem(imgurl, pos, scale) {
+function addItem(imgurl, center, scale) {
   var item =
     { imgurl: imgurl
-    , pos: {x: pos.x, y: pos.y}
+    , center: {x: center.x, y: center.y}
     , scale: scale
     , selected: false
     , locked: false };
@@ -331,18 +331,20 @@ function itemSizeMeasure(item) {
 function drawItem(item) {
   var img = itemImage(item);
   var size = itemSize(item);
+  var x = item.center.x - size.w/2;
+  var y = item.center.y - size.h/2;
   if (img != null) {
-    context.drawImage(img, item.pos.x, item.pos.y, size.w, size.h);
+    context.drawImage(img, x, y, size.w, size.h);
   }
   else {
     context.fillStyle="grey";
-    context.fillRect(item.pos.x, item.pos.y, size.w, size.h);
+    context.fillRect(x, y, size.w, size.h);
   }
   if (item.selected == true) {
     context.strokeStyle="black";
-    context.strokeRect(item.pos.x-0.5, item.pos.y-0.5, size.w+1, size.h+1);
+    context.strokeRect(x-0.5, y-0.5, size.w+1, size.h+1);
     context.strokeStyle="yellow";
-    context.strokeRect(item.pos.x-1.5, item.pos.y-1.5, size.w+3, size.h+3);
+    context.strokeRect(x-1.5, y-1.5, size.w+3, size.h+3);
   }
 }
 
@@ -383,17 +385,13 @@ function notSelectedItems() {
 
 function moveItem(dx, dy) {
   return function(item) {
-    item.pos.x += dx;
-    item.pos.y += dy;
+    item.center.x += dx;
+    item.center.y += dy;
   };
 }
 function scaleItem(factor) {
   return function(item) {
-    var oldSize = itemSize(item);
     item.scale *= factor;
-    var newSize = itemSize(item);
-    item.pos.x += (oldSize.w-newSize.w)/2;
-    item.pos.y += (oldSize.h-newSize.h)/2;
   }
 }
 
@@ -414,10 +412,10 @@ function itemAt(x, y) {
 // does the item contain the point?
 function itemCovers(item, x, y) {
   var size = itemSize(item);
-  var x_rel = x - item.pos.x;
-  var y_rel = y - item.pos.y;
-  if ( x_rel < 0 || x_rel >= size.w ||
-       y_rel < 0 || y_rel >= size.h ) {
+  var x_rel = x - item.center.x;
+  var y_rel = y - item.center.y;
+  if ( x_rel < -size.w/2 || x_rel >= size.w/2 ||
+       y_rel < -size.h/2 || y_rel >= size.h/2 ) {
     return false;
   }
   // I would like to check the alpha value of the items image now,
@@ -456,7 +454,7 @@ function toggleLocked(item) {
 function cloneItem(item) {
   var clone = addItem(
       item.imgurl
-    , {x: item.pos.x, y: item.pos.y}
+    , {x: item.center.x, y: item.center.y}
     , item.scale );
   moveItem(10, 10)(clone);
   selectItem(clone);
@@ -494,7 +492,7 @@ function onAddNewItem() {
   var imgurl = ui.newItemText.value;
   ui.newItemText.value = "";
   toggleNewItemDiv(false);
-  addItem(imgurl, {x: 50, y: 50}, 1);
+  addItem(imgurl, {x: 0, y: 0}, 1);
   repaint();
   sendSyncData();
 }
