@@ -331,9 +331,10 @@ function itemSize(item) {
 // a number representing the size of the item
 // (for sorting by size)
 function itemSizeMeasure(item) {
-  var size = itemSize(item);
-  // Use rounded size to respect pilingCompatibleWith().
-  return Math.round(size.w) * Math.round(size.h);
+  // Use rounded size to respect piling compatibility
+  // and sort by x coordinate for equal size.
+  var size = roundedItemSize(item);
+  return size.w * size.h - 0.0001 * item.center.x;
 }
 
 function drawItem(item) {
@@ -512,7 +513,7 @@ function isPileNeighbour(item, d, tolerance) {
     var c1 = hasRoundedSize(size, other);
     var c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
     var c3 = Math.abs(other.center.y - expected.y) < size.h * tolerance;
-    console.log("-- " + c0 + " " + c1 + " " + c2 + " " + c3);
+    // console.log("-- " + c0 + " " + c1 + " " + c2 + " " + c3);
     return c0 && c1 && c2 && c3;
   }
 }
