@@ -152,7 +152,7 @@ function onMouseDown(e) {
     if (!e.shiftKey) {
       if (item == null || item.selected != true) {
         deselectAll();
-        selectItem(item);
+        setSelected(item, true);
       }
     }
     else {
@@ -438,24 +438,32 @@ function deselectAll() {
   items.forEach(function(item) {item.selected = false;});
 }
 
-function selectItem(item) {
-  if (item == null) return;
-  if (!item.locked) {
-    item.selected = true;
+function setSelected(item, value) {
+  if (item == null || item.locked) return;
+  // Items in piles select and deselect together,
+  // except for the topmost one.
+  if (isNonTopPileMember(item)) {
+    wholePile(item).forEach(function(i) {i.selected = value;});
+  }
+  else {
+    item.selected = value;
   }
 }
 
 function toggleSelected(item) {
-  if (item == null) return;
-  if (!item.locked) {
-    item.selected = !item.selected;
-  }
+  setSelected(item, !item.selected);
 }
 
 function toggleLocked(item) {
   if (item == null) return;
-  item.locked = !item.locked;
-  item.selected = !item.locked;
+  if (item.locked) {
+    item.locked = false;
+    setSelected(item, true);
+  }
+  else {
+    item.locked = true;
+    item.selected = false;
+  }
   repaint();
   sendSyncData();
 }
@@ -463,16 +471,18 @@ function toggleLocked(item) {
 function cloneItem(item) {
   var clone = addItem(
       item.imgurl
-    , {x: item.center.x, y: item.center.y}
+    , {x: item.center.x + 20, y: item.center.y + 20}
     , item.scale );
-  moveItem(10, 10)(clone);
-  selectItem(clone);
-  item.selected = false;
+  return clone;
 }
 
 function cloneSelected() {
-  selectedItems().forEach(cloneItem);
-  selectedItems().forEach(moveItem(10, 10));
+  var clones = [];
+  selectedItems().forEach(function(item) {
+    setSelected(item, false);
+    clones.push(cloneItem(item));
+  });
+  clones.forEach(function(item) {setSelected(item, true);});
   repaint();
   sendSyncData();
 }
@@ -513,8 +523,9 @@ function isPileNeighbour(item, d, tolerance) {
     var c1 = hasRoundedSize(size, other);
     var c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
     var c3 = Math.abs(other.center.y - expected.y) < size.h * tolerance;
+    var c4 = other.locked == false;
     // console.log("-- " + c0 + " " + c1 + " " + c2 + " " + c3);
-    return c0 && c1 && c2 && c3;
+    return c0 && c1 && c2 && c3 && c4;
   }
 }
 
@@ -534,15 +545,40 @@ function potentiallyPutOnPile(item) {
   if (found == null) {
     return false;
   }
-  var current = found;
-  var next = findPileNeighbour(current, 1);
-  while (next != null) {
-    current = next;
-    next = findPileNeighbour(current, 1);
-  }
-  var topmost = current;
+  var topmost = topOfPile(found);
   item.center = expectedPileNeighbourPosition(topmost, 1);
   return true;
+}
+
+// Apply funciton f to the items in a pile,
+// starting at the given item, going in direction d.
+function traversePile(item, d, f) {
+  var i = item;
+  while (i != null) {
+    f(i);
+    i = findPileNeighbour(i, d);
+  }
+}
+
+function endOfPile(item, d) {
+  var result = null;
+  traversePile(item, d, function(i) {result = i;});
+  return result;
+}
+
+function topOfPile(item) {
+  return endOfPile(item, 1);
+}
+
+function wholePile(item) {
+  var bottom = endOfPile(item, -1);
+  var pile = [];
+  traversePile(bottom, 1, function(i) {pile.push(i);});
+  return pile;
+}
+
+function isNonTopPileMember(item) {
+  return findPileNeighbour(item, 1) != null;
 }
 
 
