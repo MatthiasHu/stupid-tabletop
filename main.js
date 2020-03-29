@@ -28,6 +28,7 @@ var items = [];
 // , scale: ...
 // , selected: <a bool>
 // , locked: <a bool>
+// , faceDown: <a bool>
 // }
 // (center is in table coordinates)
 
@@ -217,6 +218,9 @@ function onKeyDown(e) {
   if (e.key=="Delete" || e.key=="Backspace") {
     deleteSelected();
   }
+  if (e.key=="f") {
+    flipSelected();
+  }
   if (e.key=="a") {
     toggleNewItemDiv();
   }
@@ -342,18 +346,28 @@ function drawItem(item) {
   var size = itemSize(item);
   var x = item.center.x - size.w/2;
   var y = item.center.y - size.h/2;
-  if (img != null) {
-    context.drawImage(img, x, y, size.w, size.h);
+  if (!item.faceDown) {
+    if (img != null) {
+      context.drawImage(img, x, y, size.w, size.h);
+    }
+    else {
+      context.fillStyle = "grey";
+      context.fillRect(x, y, size.w, size.h);
+    }
   }
   else {
-    context.fillStyle="grey";
+    context.fillStyle = "black";
     context.fillRect(x, y, size.w, size.h);
+    context.strokeStyle = "grey";
+    context.strokeRect(x, y, size.w, size.h);
   }
   if (item.selected == true) {
-    context.strokeStyle="black";
-    context.strokeRect(x-0.5, y-0.5, size.w+1, size.h+1);
-    context.strokeStyle="yellow";
-    context.strokeRect(x-1.5, y-1.5, size.w+3, size.h+3);
+    context.lineWidth = 3;
+    context.strokeStyle = "#0088";
+    context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+    context.lineWidth = 2;
+    context.strokeStyle = "#0ff"; //"#44f";
+    context.strokeRect(x-2, y-2, size.w+4, size.h+4);
   }
 }
 
@@ -489,6 +503,18 @@ function cloneSelected() {
 
 function deleteSelected() {
   items = notSelectedItems();
+  repaint();
+  sendSyncData();
+}
+
+function flipSelected() {
+  var allFaceDown = true;
+  selectedItems().forEach(function(item) {
+    allFaceDown = allFaceDown && item.faceDown;
+  });
+  selectedItems().forEach(function(item) {
+    item.faceDown = !allFaceDown;
+  });
   repaint();
   sendSyncData();
 }

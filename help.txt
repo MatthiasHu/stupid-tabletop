@@ -42,10 +42,16 @@ Use the mouse wheel while holding Shift to scale selected items.
 
 
 locking items
-------------
+-------------
 
 Locked items can not be selected, moved or scaled.
 Double click to lock or unlock an item.
+
+
+face-down items
+---------------
+
+Press F to flip an item (or all items in a pile) face-down.
 
 
 piles
