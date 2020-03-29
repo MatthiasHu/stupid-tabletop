@@ -48,11 +48,18 @@ Locked items can not be selected, moved or scaled.
 Double click to lock or unlock an item.
 
 
+piles
+-----
+
+Drop an item on another item of the same size to form a pile.
+Note: The images used must have the exact same dimensions in pixels.
+
+
 switching tables
 ----------------
 
 Write any name in the "table name" line and hit "connect".
-Names can contain letters, number, '-', '_' and '/'.
+Names can contain letters, numbers, '-' and '_'.
 If the name was never used before, a new blank table is created.
 If "(not connected)" is shown forever, the table name may be invalid.
 
