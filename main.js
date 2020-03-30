@@ -221,6 +221,9 @@ function onKeyDown(e) {
   if (e.key=="f") {
     flipSelected();
   }
+  if (e.key=="s") {
+    shuffleSelected();
+  }
   if (e.key=="a") {
     toggleNewItemDiv();
   }
@@ -301,7 +304,8 @@ function addItem(imgurl, center, scale) {
     , center: {x: center.x, y: center.y}
     , scale: scale
     , selected: false
-    , locked: false };
+    , locked: false
+    , faceDown: false };
   items.push(item);
   ensureItemImage(item);
   sortItems();
@@ -519,6 +523,50 @@ function flipSelected() {
   sendSyncData();
 }
 
+function shuffleSelected() {
+  // Collect the bottoms of all piles with selected items.
+  var bottoms = [];
+  selectedItems().forEach(function(item) {
+    var b = bottomOfPile(item);
+    if (!arrayIncludes(bottoms, b)) {
+      bottoms.push(b);
+    }
+  });
+  console.log("shuffling " + bottoms.length + " piles...");
+  // Shuffle each pile individually.
+  bottoms.forEach(function(b) {
+    var bottomOfCenter = {x: b.center.x, y: b.center.y};
+    var pile = wholePile(b);
+    shuffleArray(pile);
+    arrangeShuffledPile(pile, bottomOfCenter, roundedItemSize(b));
+  });
+  deselectAll();
+  sortItems();
+  repaint();
+  sendSyncData();
+}
+
+function arrayIncludes(a, e) {
+  var result = false;
+  a.forEach(function(x) {
+    if (x == e) {
+      result = true;
+    }
+  });
+  return result;
+}
+
+// Fischer-Yates-shuffle
+function shuffleArray(a) {
+  var i;
+  for (i = a.length-1; i>=0; i--) {
+    var j = Math.floor(Math.random() * (i+1));
+    var tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+}
+
 // piling related stuff
 
 function roundedItemSize(item) {
@@ -571,7 +619,11 @@ function potentiallyPutOnPile(item) {
   if (found == null) {
     return false;
   }
+  // Temporarily lock the item, so it does not count for the pile.
+  // (Sorry for that.)
+  item.locked = true;
   var topmost = topOfPile(found);
+  item.locked = false;
   item.center = expectedPileNeighbourPosition(topmost, 1);
   return true;
 }
@@ -596,8 +648,12 @@ function topOfPile(item) {
   return endOfPile(item, 1);
 }
 
+function bottomOfPile(item) {
+  return endOfPile(item, -1);
+}
+
 function wholePile(item) {
-  var bottom = endOfPile(item, -1);
+  var bottom = bottomOfPile(item);
   var pile = [];
   traversePile(bottom, 1, function(i) {pile.push(i);});
   return pile;
@@ -605,6 +661,18 @@ function wholePile(item) {
 
 function isNonTopPileMember(item) {
   return findPileNeighbour(item, 1) != null;
+}
+
+function arrangeShuffledPile(pileItems, centerOfBottom, size) {
+  var center = {x: centerOfBottom.x, y: centerOfBottom.y};
+  center.y += 0.5 * size.h;
+  for (var i = 0; i < pileItems.length; i++) {
+    // center.x += 0.1 * (Math.random()-0.5) * size.w;
+    // center.y += 0.1 * (Math.random()-0.5) * size.h;
+    pileItems[i].center.x = center.x;
+    pileItems[i].center.y = center.y;
+    center = expectedPileNeighbourPosition(pileItems[i], 1);
+  }
 }
 
 

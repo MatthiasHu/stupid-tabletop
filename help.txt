@@ -60,6 +60,9 @@ piles
 Drop an item on another item of the same size to form a pile.
 Note: The images used must have the exact same dimensions in pixels.
 
+Press S to shuffle a pile.
+You might want to flip the items face-down by pressing F first.
+
 
 switching tables
 ----------------
