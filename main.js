@@ -29,8 +29,11 @@ var items = [];
 // , selected: <a bool>
 // , locked: <a bool>
 // , faceDown: <a bool>
+// , isPlayerArea: <null or a player id>
 // }
-// (center is in table coordinates)
+// center is in table coordinates.
+// locked == true implies selected == false.
+// locked == false implies isPlayerArea == null.
 
 // image data,
 // dictionary from urls to image objects
@@ -53,6 +56,9 @@ var transformation = {t: {x: 0, y: 0}, s: 1};
 // the websocket
 var socket = null;
 // null when there is no current connection or conntection attempt
+
+// Randomly generated identifier for this player.
+var playerId = "player" + Math.floor(Math.random()*1000000);
 
 
 function onLoad() {
@@ -130,10 +136,15 @@ function setCanvasResolution() {
 }
 
 function repaint() {
+  var myPlayerAreas = items.filter(function(item) {
+    return item.isPlayerArea == playerId;
+  });
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
   applyViewTransformation();
-  items.forEach(drawItem);
+  items.forEach(function(item) {
+    drawItem(item, myPlayerAreas);
+  });
 }
 function applyViewTransformation() {
   context.translate(transformation.t.x, transformation.t.y);
@@ -223,6 +234,9 @@ function onKeyDown(e) {
   }
   if (e.key=="s") {
     shuffleSelected();
+  }
+  if (e.key=="m") {
+    claimPlayerArea();
   }
   if (e.key=="a") {
     toggleNewItemDiv();
@@ -345,34 +359,89 @@ function itemSizeMeasure(item) {
   return size.w * size.h - 0.0001 * item.center.x;
 }
 
-function drawItem(item) {
+function drawItem(item, myPlayerAreas) {
   var img = itemImage(item);
   var size = itemSize(item);
   var x = item.center.x - size.w/2;
   var y = item.center.y - size.h/2;
   if (!item.faceDown) {
-    if (img != null) {
-      context.drawImage(img, x, y, size.w, size.h);
-    }
-    else {
-      context.fillStyle = "grey";
-      context.fillRect(x, y, size.w, size.h);
-    }
+    drawItemFaceUp(img, x, y, size);
   }
   else {
-    context.fillStyle = "black";
-    context.fillRect(x, y, size.w, size.h);
-    context.strokeStyle = "grey";
-    context.strokeRect(x, y, size.w, size.h);
+    var transparent = false;
+    myPlayerAreas.forEach(function(area) {
+      if (itemIsContainedIn(item, area)) {
+        transparent = true;
+      }
+    });
+    if (transparent) {
+      drawItemFaceUp(img, x, y, size);
+      drawFaceDownReminder(x, y, size);
+    }
+    else {
+      drawItemFaceDown(x, y, size);
+    }
   }
   if (item.selected == true) {
-    context.lineWidth = 3;
-    context.strokeStyle = "#0088";
-    context.strokeRect(x-2, y-2, size.w+4, size.h+4);
-    context.lineWidth = 2;
-    context.strokeStyle = "#0ff"; //"#44f";
-    context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+    drawSelectionBorder(x, y, size);
   }
+  if (item.isPlayerArea != null) {
+    drawPlayerAreaBorder(item, x, y, size);
+  }
+}
+
+function drawItemFaceUp(img, x, y, size) {
+  if (img != null) {
+    context.drawImage(img, x, y, size.w, size.h);
+  }
+  else {
+    context.fillStyle = "grey";
+    context.fillRect(x, y, size.w, size.h);
+  }
+}
+
+function drawItemFaceDown(x, y, size) {
+  context.fillStyle = "black";
+  context.fillRect(x, y, size.w, size.h);
+  context.lineWidth = 1;
+  context.strokeStyle = "grey";
+  context.strokeRect(x, y, size.w, size.h);
+}
+
+function drawFaceDownReminder(x, y, size) {
+  context.fillStyle = "#0002";
+  context.fillRect(x, y, size.w, size.h);
+
+  function strokeInnerFrame(color, b) {
+    context.strokeStyle = color;
+    context.lineWidth = b;
+    context.strokeRect(x+b/2, y+b/2, size.w-b, size.h-b);
+  }
+  strokeInnerFrame("#000c", 5);
+
+  context.lineWidth = 1;
+  context.strokeStyle = "black";
+  context.strokeRect(x, y, size.w, size.h);
+}
+
+function drawSelectionBorder(x, y, size) {
+  context.lineWidth = 3;
+  context.strokeStyle = "#0088";
+  context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+  context.lineWidth = 2;
+  context.strokeStyle = "#0ff";
+  context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+}
+
+function drawPlayerAreaBorder(item, x, y, size) {
+  context.lineWidth = 1;
+  if (item.isPlayerArea == playerId) {
+    context.strokeStyle = "green";
+  }
+  else {
+    context.strokeStyle = "red";
+  }
+  context.strokeRect(x, y, size.w, size.h);
 }
 
 // called when new sync data is recieved
@@ -450,6 +519,16 @@ function itemCovers(item, x, y) {
   return true;
 }
 
+function itemIsContainedIn(inner, outer) {
+  var s0 = itemSize(inner);
+  var s1 = itemSize(outer);
+  var dx = inner.center.x - outer.center.x;
+  var dy = inner.center.y - outer.center.y;
+  var dw = s1.w - s0.w;
+  var dh = s1.h - s0.h;
+  return ( dx > -dw/2 && dx < dw/2 && dy > -dh/2 && dy < dh/2 );
+}
+
 // selecting items
 
 function deselectAll() {
@@ -476,6 +555,7 @@ function toggleLocked(item) {
   if (item == null) return;
   if (item.locked) {
     item.locked = false;
+    item.isPlayerArea = null;
     setSelected(item, true);
   }
   else {
@@ -565,6 +645,17 @@ function shuffleArray(a) {
     a[i] = a[j];
     a[j] = tmp;
   }
+}
+
+function claimPlayerArea() {
+  var selected = selectedItems();
+  if (selected.length == 1) {
+    selected[0].locked = true;
+    selected[0].selected = false;
+    selected[0].isPlayerArea = playerId;
+  }
+  repaint();
+  sendSyncData();
 }
 
 // piling related stuff

@@ -59,9 +59,18 @@ piles
 
 Drop an item on another item of the same size to form a pile.
 Note: The images used must have the exact same dimensions in pixels.
+Only the topmost item can be removed from a pile.
 
-Press S to shuffle a pile.
+To shuffle a pile, select it and press S.
 You might want to flip the items face-down by pressing F first.
+
+
+private areas
+-------------
+
+In your private area, you see face-down items as if they were face-up.
+To claim an item as your private area, select it and press M.
+Double click on a private area to release it.
 
 
 switching tables
