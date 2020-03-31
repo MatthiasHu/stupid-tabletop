@@ -12,11 +12,11 @@ The changes are automatically visible to everybody looking at the same table.
 Hold Shift and click to select multiple items.
 
 
-zooming in and out
-------------------
+looking around
+--------------
 
-Use the mouse wheel.
-To move the view, zoom out and then zoom in to another region.
+Use the mouse wheel to zoom in and out.
+Drag the table to move your view.
 
 
 adding items

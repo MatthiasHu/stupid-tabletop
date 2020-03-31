@@ -45,9 +45,13 @@ var images = {};
 // or null (if mouse is not pressed or outside the canvas)
 var lastDragPos = null;
 
-// are some items currently being dragged?
-// (then send sync data on mouse up)
-var dragging = false;
+// null, "items" or "table".
+// Set on mouse down event.
+var dragging = null;
+
+// Send sync data on mouse up?
+// (Implies dragging == "items".)
+var itemsHaveBeenDragged = false;
 
 // current view transformation (translation and scale)
 var transformation = {t: {x: 0, y: 0}, s: 1};
@@ -158,17 +162,26 @@ function onMouseDown(e) {
   if (e.buttons==1) {
     lastDragPos = {x: pos.x, y: pos.y};
     var item = itemAt(pos.x, pos.y);
-    if (item != null && item.locked == true) {
+    if (item != null && item.locked) {
       item = null;
     }
-    if (!e.shiftKey) {
-      if (item == null || item.selected != true) {
+    if (item == null) {
+      dragging = "table";
+      if (!e.shiftKey) {
         deselectAll();
-        setSelected(item, true);
       }
     }
     else {
-      toggleSelected(item);
+      if (e.shiftKey) {
+        toggleSelected(item);
+      }
+      else {
+        dragging = "items";
+        if (item.selected != true) {
+          deselectAll();
+          setSelected(item, true);
+        }
+      }
     }
     repaint();
   }
@@ -183,19 +196,24 @@ function onDblClick(e) {
 }
 function onMouseMove(e) {
   var pos = canvasToTable(eventCoordinates(e));
-  if (e.buttons==1) {
-    if (lastDragPos != null) {
+  if (lastDragPos != null) {
+    var dx = pos.x - lastDragPos.x;
+    var dy = pos.y - lastDragPos.y;
+    if (dragging == "items") {
       var selected = selectedItems();
+      selected.forEach(moveItem(dx, dy));
       if (selected.length > 0) {
-        dragging = true;
-        var dx = pos.x - lastDragPos.x;
-        var dy = pos.y - lastDragPos.y;
-        selected.forEach(moveItem(dx, dy));
+        itemsHaveBeenDragged = true;
       }
       repaint();
     }
-    lastDragPos = {x: pos.x, y: pos.y};
+    if (dragging == "table") {
+      transformation.t.x += transformation.s * dx;
+      transformation.t.y += transformation.s * dy;
+      repaint();
+    }
   }
+  lastDragPos = canvasToTable(eventCoordinates(e));
 }
 function onMouseOut(e) {
   finishDrag();
@@ -265,19 +283,19 @@ function tableToCanvas(p) {
 }
 
 function finishDrag() {
-  if (dragging != true) {
-    return;
-  }
-  console.log("finishing drag");
-  dragging = false;
-  var selected = selectedItems();
-  if (selected.length == 1) {
-    if (potentiallyPutOnPile(selected[0])) {
-      console.log("(put on pile)");
+  if (dragging == "items") {
+    console.log("finishing item drag");
+    var selected = selectedItems();
+    if (selected.length == 1) {
+      if (potentiallyPutOnPile(selected[0])) {
+        console.log("(put on pile)");
+      }
     }
+    repaint();
+    sendSyncData();
   }
-  repaint();
-  sendSyncData();
+  dragging = null;
+  itemsHaveBeenDragged = false;
 }
 
 // scale the view by a factor
@@ -449,6 +467,10 @@ function newData(json) {
   if (json.length == 0) json = "[]";
   var newItems = JSON.parse(json);
   // TODO: check that newItems is an array of items
+  if (dragging == "items") {
+    dragging = null;
+    itemsHaveBeenDragged = false;
+  }
   items = newItems;
   items.forEach(ensureItemImage);
   sortItems();
