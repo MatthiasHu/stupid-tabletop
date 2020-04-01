@@ -808,6 +808,7 @@ function onAddNewItem() {
   ui.newItemText.value = "";
   toggleNewItemDiv(false);
   addItem(imgurl, {x: 0, y: 0}, 1);
+  canvas.focus();
   repaint();
   sendSyncData();
 }
