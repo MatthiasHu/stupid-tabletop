@@ -64,6 +64,8 @@ Only the topmost item can be removed from a pile.
 To shuffle a pile, select it and press S.
 You might want to flip the items face-down by pressing F first.
 
+You can also select multiple items (hold Shift) and shuffle them into a pile.
+
 
 private areas
 -------------

@@ -171,7 +171,7 @@ function applyViewTransformation() {
 function onMouseDown(e) {
   var pos = canvasToTable(eventCoordinates(e));
   if (e.buttons==1) {
-    lastDragPos = {x: pos.x, y: pos.y};
+    lastDragPos = copyPoint(pos);
     var item = itemAt(pos.x, pos.y);
     if (item != null && item.locked) {
       item = null;
@@ -344,7 +344,7 @@ function ensureItemImage(item) {
 function addItem(imgurl, center, scale) {
   var item =
     { imgurl: imgurl
-    , center: {x: center.x, y: center.y}
+    , center: copyPoint(center)
     , scale: scale
     , selected: false
     , locked: false
@@ -638,22 +638,36 @@ function flipSelected() {
 }
 
 function shuffleSelected() {
-  // Collect the bottoms of all piles with selected items.
-  var bottoms = [];
-  selectedItems().forEach(function(item) {
-    var b = bottomOfPile(item);
-    if (!arrayIncludes(bottoms, b)) {
-      bottoms.push(b);
+  var selected = selectedItems();
+  if (selected.length == 0) return;
+  // Only proceed if all selected items have the same rounded size.
+  var size = roundedItemSize(selected[0]);
+  var allSameSize = true;
+  selected.forEach(function(i) {
+    if (!hasRoundedSize(size, i)) allSameSize = false;
+  });
+  if (!allSameSize) return;
+  // Determine the position of the shuffled pile.
+  var bottomOfLargestPile = null;
+  var sizeOfLargestPile = 0;
+  selected.forEach(function(i) {
+    if (findPileNeighbour(i, 0) != null) return;
+    var s = wholePile(i).length;
+    if (s > sizeOfLargestPile) {
+      bottomOfLargestPile = i;
+      sizeOfLargestPile = s;
     }
   });
-  console.log("shuffling " + bottoms.length + " piles...");
-  // Shuffle each pile individually.
-  bottoms.forEach(function(b) {
-    var bottomOfCenter = {x: b.center.x, y: b.center.y};
-    var pile = wholePile(b);
-    shuffleArray(pile);
-    arrangeShuffledPile(pile, bottomOfCenter, roundedItemSize(b));
-  });
+  var pos = null;
+  if (bottomOfLargestPile == null) {
+    pos = copyPoint(selected[0].center);
+  }
+  else {
+    pos = copyPoint(bottomOfLargestPile.center);
+  }
+  // Shuffle and arrange.
+  shuffleArray(selected);
+  arrangeShuffledPile(selected, pos, size);
   deselectAll();
   sortItems();
   sendSyncData();
@@ -789,7 +803,7 @@ function isNonTopPileMember(item) {
 }
 
 function arrangeShuffledPile(pileItems, centerOfBottom, size) {
-  var center = {x: centerOfBottom.x, y: centerOfBottom.y};
+  var center = copyPoint(centerOfBottom);
   center.y += 0.5 * size.h;
   for (var i = 0; i < pileItems.length; i++) {
     // center.x += 0.1 * (Math.random()-0.5) * size.w;
@@ -884,4 +898,8 @@ function discardSocket() {
   socket.onclose = null;
   socket.onerror = null;
   socket = null;
+}
+
+function copyPoint(p) {
+  return {x: p.x, y: p.y};
 }
