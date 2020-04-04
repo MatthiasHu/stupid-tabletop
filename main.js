@@ -53,6 +53,10 @@ var dragging = null;
 // (Implies dragging == "items".)
 var itemsHaveBeenDragged = false;
 
+// Has data last been sent or received?
+// ("sent" or "received" or null.)
+var lastSyncEvent = null;
+
 // current view transformation (translation and scale)
 var transformation = {t: {x: 0, y: 0}, s: 1};
 // [table coords] ---(scaling)---(translation)--- [canvas coords]
@@ -149,7 +153,14 @@ function repaint() {
   items.forEach(function(item) {
     drawItem(item, myPlayerAreas);
   });
+  if (lastSyncEvent != "received") {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.strokeStyle = "#8088";
+    context.lineWidth = 40;
+    context.strokeRect(0, 0, canvas.width, canvas.height);
+  }
 }
+
 function applyViewTransformation() {
   context.translate(transformation.t.x, transformation.t.y);
   context.scale(transformation.s, transformation.s);
@@ -229,8 +240,8 @@ function onWheel(e) {
   var factor = Math.pow(scaleSensibility, -e.deltaY);
   if (e.shiftKey) {
     selectedItems().forEach(scaleItem(factor));
-    repaint();
     sendSyncData();
+    repaint();
   }
   else {
     onScale(factor, pos);
@@ -291,8 +302,8 @@ function finishDrag() {
         console.log("(put on pile)");
       }
     }
-    repaint();
     sendSyncData();
+    repaint();
   }
   dragging = null;
   itemsHaveBeenDragged = false;
@@ -467,6 +478,7 @@ function newData(json) {
   if (json.length == 0) json = "[]";
   var newItems = JSON.parse(json);
   // TODO: check that newItems is an array of items
+  lastSyncEvent = "received";
   if (dragging == "items") {
     dragging = null;
     itemsHaveBeenDragged = false;
@@ -584,8 +596,8 @@ function toggleLocked(item) {
     item.locked = true;
     item.selected = false;
   }
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function cloneItem(item) {
@@ -603,14 +615,14 @@ function cloneSelected() {
     clones.push(cloneItem(item));
   });
   clones.forEach(function(item) {setSelected(item, true);});
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function deleteSelected() {
   items = notSelectedItems();
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function flipSelected() {
@@ -621,8 +633,8 @@ function flipSelected() {
   selectedItems().forEach(function(item) {
     item.faceDown = !allFaceDown;
   });
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function shuffleSelected() {
@@ -644,8 +656,8 @@ function shuffleSelected() {
   });
   deselectAll();
   sortItems();
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function arrayIncludes(a, e) {
@@ -676,8 +688,8 @@ function claimPlayerArea() {
     selected[0].selected = false;
     selected[0].isPlayerArea = playerId;
   }
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 // piling related stuff
@@ -809,11 +821,12 @@ function onAddNewItem() {
   toggleNewItemDiv(false);
   addItem(imgurl, {x: 0, y: 0}, 1);
   canvas.focus();
-  repaint();
   sendSyncData();
+  repaint();
 }
 
 function sendSyncData() {
+  lastSyncEvent = "sent";
   if (socket != null) {
     socket.send(JSON.stringify(items));
   }
