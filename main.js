@@ -237,7 +237,8 @@ function onMouseUp(e) {
 function onWheel(e) {
   e.preventDefault();
   var pos = canvasToTable(eventCoordinates(e));
-  var factor = Math.pow(scaleSensibility, -e.deltaY);
+  var delta = wheelEventDelta(e);
+  var factor = Math.pow(scaleSensibility, -delta);
   if (e.shiftKey) {
     selectedItems().forEach(scaleItem(factor));
     sendSyncData();
@@ -246,6 +247,12 @@ function onWheel(e) {
   else {
     onScale(factor, pos);
   }
+}
+function wheelEventDelta(e) {
+  // TODO:
+  // How to interpret e.deltaY (using e.deltaMode) in a sensible way,
+  // and still scale items in predefined discrete steps (for piling)?
+  return e.deltaY > 0 ? 3 : -3;
 }
 
 function onKeyDown(e) {
