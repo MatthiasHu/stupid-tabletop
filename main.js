@@ -518,7 +518,7 @@ function newData(json) {
   var resendLater = false;
   // do not accept movement of selected items and resend
   // position of those
-  if(selectedItemIDs !== [])
+  if(selectedItemIDs !== [] && dragging == "items")
   {
 	  resendLater = true;
 	  newItems.forEach(function (newItem)
