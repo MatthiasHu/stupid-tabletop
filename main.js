@@ -516,10 +516,10 @@ function newData(json) {
   //  itemsHaveBeenDragged = false;
   //}
   var resendLater = false;
-  // do not accept movement of selected items and resend
-  // position of those
+  // do not accept movement of selected items while dragging
   if(selectedItemIDs !== [] && dragging == "items")
   {
+	  console.log("receiveing and dragging");
 	  resendLater = true;
 	  newItems.forEach(function (newItem)
 	  {
@@ -531,8 +531,6 @@ function newData(json) {
   items = newItems;
   items.forEach(ensureItemImage);
   sortItems();
-  if(resendLater)
-  {sendSyncData();}
   repaint();
 }
 
