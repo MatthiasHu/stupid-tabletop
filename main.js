@@ -196,7 +196,6 @@ function onMouseDown(e) {
         if (!isSelected(item)) {
           deselectAll();
           setSelected(item, true);
-		  console.log("selected ids: " + selectedItemIDs);
         }
       }
     }
@@ -218,7 +217,6 @@ function onMouseMove(e) {
     var dy = pos.y - lastDragPos.y;
     if (dragging == "items") {
       var selected = selectedItems();
-	  console.log("moved items: " + selected);
       selected.forEach(moveItem(dx, dy));
       if (selected.length > 0) {
         itemsHaveBeenDragged = true;
@@ -360,12 +358,17 @@ function isIdFree(id){
 	return free;
 }
 
-// add item to items array (and also return it)
-function addItem(imgurl, center, scale) {
+function newID(){
 	var id = Math.floor(Math.random()*1000000);
 	while(!isIdFree(id)){
-		id ++;;
-	}
+	id ++;}
+	
+	return id;
+}
+
+// add item to items array (and also return it)
+function addItem(imgurl, center, scale) {
+	var id = newID();
 	
   var item =
     { 
@@ -519,7 +522,6 @@ function newData(json) {
   // do not accept movement of selected items while dragging
   if(selectedItemIDs !== [] && dragging == "items")
   {
-	  console.log("receiveing and dragging");
 	  resendLater = true;
 	  newItems.forEach(function (newItem)
 	  {
@@ -528,6 +530,14 @@ function newData(json) {
 		  }
 	  })
   }
+  
+  newItems.forEach(i => { 
+  if(i.id === undefined){
+	  i.id = newID();
+  }
+	  
+	 });
+  
   items = newItems;
   items.forEach(ensureItemImage);
   sortItems();
