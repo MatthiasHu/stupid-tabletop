@@ -353,27 +353,27 @@ function ensureItemImage(item) {
 }
 
 function isIdFree(id){
-	var free = true;
-	items.forEach(e => {if (e === id) free = false;});
-	return free;
+  var free = true;
+  items.forEach(e => {if (e === id) free = false;});
+  return free;
 }
 
 function newID(){
-	var id = Math.floor(Math.random()*1000000);
-	while(!isIdFree(id)){
-	id ++;}
-	
-	return id;
+  var id = Math.floor(Math.random()*1000000);
+  while (!isIdFree(id)) {
+    id ++;
+  }
+
+  return id;
 }
 
 // add item to items array (and also return it)
 function addItem(imgurl, center, scale) {
-	var id = newID();
-	
+  var id = newID();
+
   var item =
-    { 
-	id: id
-	, imgurl: imgurl
+    { id: id
+    , imgurl: imgurl
     , center: copyPoint(center)
     , scale: scale
     , selected: false
@@ -505,7 +505,6 @@ function drawPlayerAreaBorder(item, x, y, size) {
 
 //removes all duplicates by id from items
 function removeDuplictes(){
-	
 }
 
 // called when new sync data is recieved
@@ -520,23 +519,23 @@ function newData(json) {
   //}
   var resendLater = false;
   // do not accept movement of selected items while dragging
-  if(selectedItemIDs !== [] && dragging == "items")
+  if (selectedItemIDs !== [] && dragging == "items")
   {
-	  resendLater = true;
-	  newItems.forEach(function (newItem)
-	  {
-		  if (isSelected(newItem)){
-			  newItem.center = itemByID(newItem.id).center;
-		  }
-	  })
+    resendLater = true;
+    newItems.forEach(function (newItem)
+    {
+      if (isSelected(newItem)){
+        newItem.center = itemByID(newItem.id).center;
+      }
+    })
   }
-  
+
   newItems.forEach(i => { 
-  if(i.id === undefined){
-	  i.id = newID();
+  if (i.id === undefined){
+    i.id = newID();
   }
-	  
-	 });
+
+  });
   
   items = newItems;
   items.forEach(ensureItemImage);
@@ -557,11 +556,11 @@ function sortItems() {
 }
 
 function itemByID(id){
-	var foundItems =  items.filter(i => i.id === id);
-	if(foundItems === [])
-		return {}
-	else
-		return foundItems[0];
+  var foundItems =  items.filter(i => i.id === id);
+  if (foundItems === [])
+    return {}
+  else
+    return foundItems[0];
 }
 
 // array of only the currently selected items
@@ -637,35 +636,37 @@ function setSelected(item, value) {
   // Items in piles select and deselect together,
   // except for the topmost one.
   if (isNonTopPileMember(item)) {
-	  if(value)
-			wholePile(item).forEach(function(i) {
-			selectedItemIDs.push(i.id);		
-		});
-		else{
-			selectedItemIDs = selectedItemIDs.filter(i => !wholePile(item).includes(i));
-		}
+    if (value) {
+      wholePile(item).forEach(function(i) {
+        selectedItemIDs.push(i.id);
+      });
+    }
+    else {
+      selectedItemIDs = selectedItemIDs.filter(i => !wholePile(item).includes(i));
+    }
   }
   else {
-    if(value)
-			selectedItemIDs.push(item.id);		
-		else{
-			selectedItemIDs = selectedItemIDs.filter(i => i !== item);
-		}
+    if (value) {
+      selectedItemIDs.push(item.id);
+    }
+    else {
+      selectedItemIDs = selectedItemIDs.filter(i => i !== item);
+    }
   }
 }
 
 function isSelected(item)
 {
-	return selectedItemIDs.includes(item.id);
+  return selectedItemIDs.includes(item.id);
 }
 
 function toggleSelected(item) {
-	if(isSelected(item)){
-		setSelected(item, false);
-	}
-else{
-	setSelected(item, true);
-}
+  if (isSelected(item)){
+    setSelected(item, false);
+  }
+  else{
+    setSelected(item, true);
+  }
 }
 
 function toggleLocked(item) {
@@ -678,7 +679,7 @@ function toggleLocked(item) {
   else {
     item.locked = true;
     //item.selected = false;
-	setSelected(item, false);
+  setSelected(item, false);
   }
   sendSyncData();
   repaint();
