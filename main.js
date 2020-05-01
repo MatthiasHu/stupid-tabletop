@@ -661,10 +661,10 @@ function isSelected(item)
 
 function toggleSelected(item) {
 	if(isSelected(item)){
-		selectedItemIDs = selectedItemIDs.filter(i => i !== item);
+		setSelected(item, false);
 	}
 else{
-	selectedItemIDs.push(item.id);
+	setSelected(item, true);
 }
 }
 
