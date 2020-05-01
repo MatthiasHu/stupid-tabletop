@@ -352,13 +352,13 @@ function ensureItemImage(item) {
   }
 }
 
-function isIdFree(id){
+function isIdFree(id) {
   var free = true;
-  items.forEach(e => {if (e === id) free = false;});
+  items.forEach(e => {if (e.id === id) free = false;});
   return free;
 }
 
-function newID(){
+function newID() {
   var id = Math.floor(Math.random()*1000000);
   while (!isIdFree(id)) {
     id ++;
@@ -504,7 +504,7 @@ function drawPlayerAreaBorder(item, x, y, size) {
 }
 
 //removes all duplicates by id from items
-function removeDuplictes(){
+function removeDuplictes() {
 }
 
 // called when new sync data is recieved
@@ -519,22 +519,19 @@ function newData(json) {
   //}
   var resendLater = false;
   // do not accept movement of selected items while dragging
-  if (selectedItemIDs !== [] && dragging == "items")
-  {
+  if (selectedItemIDs !== [] && dragging == "items") {
     resendLater = true;
-    newItems.forEach(function (newItem)
-    {
-      if (isSelected(newItem)){
+    newItems.forEach(function (newItem) {
+      if (isSelected(newItem)) {
         newItem.center = itemByID(newItem.id).center;
       }
     })
   }
 
   newItems.forEach(i => { 
-  if (i.id === undefined){
-    i.id = newID();
-  }
-
+    if (i.id === undefined) {
+      i.id = newID();
+    }
   });
   
   items = newItems;
@@ -555,7 +552,7 @@ function sortItems() {
   items.sort(comparing(itemSizeMeasure));
 }
 
-function itemByID(id){
+function itemByID(id) {
   var foundItems =  items.filter(i => i.id === id);
   if (foundItems === [])
     return {}
@@ -642,7 +639,8 @@ function setSelected(item, value) {
       });
     }
     else {
-      selectedItemIDs = selectedItemIDs.filter(i => !wholePile(item).includes(i));
+      var pileIds = wholePile(item).map(i => i.id);
+      selectedItemIDs = selectedItemIDs.filter(i => !pileIds.includes(i));
     }
   }
   else {
@@ -650,7 +648,7 @@ function setSelected(item, value) {
       selectedItemIDs.push(item.id);
     }
     else {
-      selectedItemIDs = selectedItemIDs.filter(i => i !== item);
+      selectedItemIDs = selectedItemIDs.filter(i => i !== item.id);
     }
   }
 }
@@ -661,10 +659,10 @@ function isSelected(item)
 }
 
 function toggleSelected(item) {
-  if (isSelected(item)){
+  if (isSelected(item)) {
     setSelected(item, false);
   }
-  else{
+  else {
     setSelected(item, true);
   }
 }
@@ -677,9 +675,8 @@ function toggleLocked(item) {
     setSelected(item, true);
   }
   else {
+    setSelected(item, false);
     item.locked = true;
-    //item.selected = false;
-  setSelected(item, false);
   }
   sendSyncData();
   repaint();
