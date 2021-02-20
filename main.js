@@ -1,7 +1,7 @@
 "use strict";
 
 // address for stupid-sync connection
-var domain = "wss://monus.de/stupid-sync-entry";
+var domain = "wss://schwubbl.de/stupid-sync-entry";
 
 var scaleSensibility = 1.05;
 
@@ -780,8 +780,8 @@ function shuffleArray(a) {
 function claimPlayerArea() {
   var selected = selectedItems();
   if (selected.length == 1) {
+    setSelected(selected[0], false);
     selected[0].locked = true;
-    selected[0].selected = false;
     selected[0].isPlayerArea = playerId;
   }
   sendSyncData();
