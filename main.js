@@ -448,7 +448,7 @@ function drawItem(item, myPlayerAreas) {
     drawPlayerAreaBorder(item, x, y, size);
   }
   if (item.locked) {
-    drawLockedItemBorder(item.center.x, item.center.y, size);
+    drawLockedItemBorder(item.center, size);
   }
 }
 
@@ -495,23 +495,71 @@ function drawSelectionBorder(x, y, size) {
   context.strokeRect(x-2, y-2, size.w+4, size.h+4);
 }
 
-function drawLockedItemBorder(cx, cy, size) {
+function drawLockedItemBorder(center, size) {
+  const l = center.x - size.w/2;
+  const r = center.x + size.w/2;
+  const t = center.y - size.h/2;
+  const b = center.y + size.h/2;
+  const stitchWidth = Math.sqrt(20 * Math.sqrt(size.w*size.h)/10);
+  drawStitches({x: r, y: t}, {x: l, y: t}, stitchWidth);
+  drawStitches({x: l, y: t}, {x: l, y: b}, stitchWidth);
+  drawStitches({x: l, y: b}, {x: r, y: b}, stitchWidth);
+  drawStitches({x: r, y: b}, {x: r, y: t}, stitchWidth);
+}
+
+function drawStitches(start, end, width) {
+  const wantedSlope = 1.5;
+  const wantedPeriod = 2 * width / wantedSlope;
+  const d = {x: end.x - start.x, y: end.y - start.y};
+  const l = Math.sqrt(d.x**2 + d.y**2);
+  const n = Math.round((l-width)/wantedPeriod);
+  if (n <= 0) return;
+  const period = (l-width)/n;
+  const a = {x: d.x/l*period, y: d.y/l*period};
+  const b = {x: -d.y/l*width, y: d.x/l*width};
+
+  context.save();
+  context.strokeStyle = "#0004";
+  context.lineWidth = 1;
+  context.translate(start.x + d.x/l*width/2, start.y + d.y/l*width/2);
+  for (let i = 0; i < n; i++) {
+    context.beginPath();
+    context.moveTo( i     *a.x - b.x/2,  i     *a.y - b.y/2);
+    context.lineTo((i+0.5)*a.x + b.x/2, (i+0.5)*a.y + b.y/2);
+    context.stroke();
+  }
+  context.restore();
+}
+
+// unused
+function drawLockedItemBorder_old(cx, cy, size) {
   const h = size.h;
   const w = size.w;
   const a = Math.sqrt(size.w * size.h) / 8;
-  const b = a/3;
 
   context.fillStyle = "#0004";
   [-1, 1].forEach(sx => {
     [-1, 1].forEach(sy => {
-      context.beginPath();
-      context.moveTo(cx + sx*(w/2 + b), cy + sy*(h/2 + b));
-      context.lineTo(cx + sx*(w/2 - a), cy + sy*(h/2 + b));
-      context.lineTo(cx + sx*(w/2 + b), cy + sy*(h/2 - a));
-      context.lineTo(cx + sx*(w/2 + b), cy + sy*(h/2 + b));
-      context.fill();
+      context.save();
+      context.translate(cx, cy);
+      context.scale(sx, sy);
+      context.translate(w/2, h/2);
+      context.scale(a, a);
+      fillPolygon(context, [[0.2, 0.2], [-1, 0.2], [0.2, -1]]);
+      context.restore();
     });
   });
+}
+
+// unused
+function fillPolygon(context, vertices) {
+  context.beginPath();
+  context.moveTo(vertices[0][0], vertices[0][1]);
+  for (let i = 1; i < vertices.length; i++) {
+    context.lineTo(vertices[i][0], vertices[i][1]);
+  }
+  context.closePath();
+  context.fill();
 }
 
 function drawPlayerAreaBorder(item, x, y, size) {
