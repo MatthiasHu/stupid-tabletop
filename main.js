@@ -447,6 +447,9 @@ function drawItem(item, myPlayerAreas) {
   if (item.isPlayerArea != null) {
     drawPlayerAreaBorder(item, x, y, size);
   }
+  if (item.locked) {
+    drawLockedItemBorder(item.center.x, item.center.y, size);
+  }
 }
 
 function drawItemFaceUp(img, x, y, size) {
@@ -490,6 +493,25 @@ function drawSelectionBorder(x, y, size) {
   context.lineWidth = 2;
   context.strokeStyle = "#0ff";
   context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+}
+
+function drawLockedItemBorder(cx, cy, size) {
+  const h = size.h;
+  const w = size.w;
+  const a = Math.sqrt(size.w * size.h) / 8;
+  const b = a/3;
+
+  context.fillStyle = "#0004";
+  [-1, 1].forEach(sx => {
+    [-1, 1].forEach(sy => {
+      context.beginPath();
+      context.moveTo(cx + sx*(w/2 + b), cy + sy*(h/2 + b));
+      context.lineTo(cx + sx*(w/2 - a), cy + sy*(h/2 + b));
+      context.lineTo(cx + sx*(w/2 + b), cy + sy*(h/2 - a));
+      context.lineTo(cx + sx*(w/2 + b), cy + sy*(h/2 + b));
+      context.fill();
+    });
+  });
 }
 
 function drawPlayerAreaBorder(item, x, y, size) {
