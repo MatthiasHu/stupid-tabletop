@@ -3,7 +3,7 @@
 // address for stupid-sync connection
 var domain = "wss://schwubbl.de/stupid-sync-entry";
 
-var scaleSensibility = 1.05;
+var scaleSensitivity = 1.05;
 
 // canvas element and drawing context
 var canvas;
@@ -71,11 +71,11 @@ var socket = null;
 // null when there is no current connection or conntection attempt
 
 // Randomly generated identifier for this player.
-var playerId = "player" + Math.floor(Math.random()*1000000);
+var myPlayerId = "player" + Math.floor(Math.random()*1000000);
 
 
 function onLoad() {
-  var get = function(id) {return document.getElementById(id);};
+  var get = id => document.getElementById(id);
 
   canvas = get("bigcanvas");
   context = canvas.getContext("2d");
@@ -118,7 +118,7 @@ function onLoad() {
 function tableNameFromURL() {
   var table = "default";
   var equations = window.location.search.substring(1).split("&");
-  equations.forEach(function(eq) {
+  equations.forEach(eq => {
     var pair = eq.split("=");
     if (pair[0] == "table") {
       table = decodeURIComponent(pair[1]);
@@ -149,15 +149,12 @@ function setCanvasResolution() {
 }
 
 function repaint() {
-  var myPlayerAreas = items.filter(function(item) {
-    return item.isPlayerArea == playerId;
-  });
+  var myPlayerAreas =
+    items.filter(item => item.isPlayerArea == myPlayerId);
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
   applyViewTransformation();
-  items.forEach(function(item) {
-    drawItem(item, myPlayerAreas);
-  });
+  items.forEach(item => drawItem(item, myPlayerAreas));
   if (lastSyncEvent != "received") {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.strokeStyle = "#8088";
@@ -243,7 +240,7 @@ function onWheel(e) {
   e.preventDefault();
   var pos = canvasToTable(eventCoordinates(e));
   var delta = wheelEventDelta(e);
-  var factor = Math.pow(scaleSensibility, -delta);
+  var factor = Math.pow(scaleSensitivity, -delta);
   if (e.shiftKey) {
     selectedItems().forEach(scaleItem(factor));
     sendSyncData();
@@ -332,10 +329,10 @@ function onScale(factor, ref) {
   repaint();
 }
 
-// add an image to the dictionary and load it's data
+// add an image to the dictionary and load its data
 function addImage(url) {
   var img = new Image();
-  img.onload = function() {
+  img.onload = () => {
     console.log("loaded image");
     img.loaded = true;
     sortItems();
@@ -428,7 +425,7 @@ function drawItem(item, myPlayerAreas) {
   }
   else {
     var transparent = false;
-    myPlayerAreas.forEach(function(area) {
+    myPlayerAreas.forEach(area => {
       if (itemIsContainedIn(item, area)) {
         transparent = true;
       }
@@ -564,7 +561,7 @@ function fillPolygon(context, vertices) {
 
 function drawPlayerAreaBorder(item, x, y, size) {
   context.lineWidth = 1;
-  if (item.isPlayerArea == playerId) {
+  if (item.isPlayerArea == myPlayerId) {
     context.strokeStyle = "green";
   }
   else {
@@ -591,7 +588,7 @@ function newData(json) {
   // do not accept movement of selected items while dragging
   if (selectedItemIDs !== [] && dragging == "items") {
     resendLater = true;
-    newItems.forEach(function (newItem) {
+    newItems.forEach(newItem => {
       if (isSelected(newItem)) {
         newItem.center = itemByID(newItem.id).center;
       }
@@ -612,9 +609,7 @@ function newData(json) {
 
 // utility function for sorting
 function comparing(feature) {
-  return function(a, b) {
-      return feature(b) - feature(a);
-    };
+  return (a, b) => feature(b) - feature(a);
 }
 
 // sort item array by size
@@ -623,7 +618,7 @@ function sortItems() {
 }
 
 function itemByID(id) {
-  var foundItems =  items.filter(i => i.id === id);
+  var foundItems = items.filter(i => i.id === id);
   if (foundItems === [])
     return {}
   else
@@ -632,26 +627,20 @@ function itemByID(id) {
 
 // array of only the currently selected items
 function selectedItems() {
-  return items.filter(function(item) {
-      return isSelected(item);
-    });
+  return items.filter(isSelected);
 }
 function notSelectedItems() {
-  return items.filter(function(item) {
-      return !isSelected(item);
-    });
+  return items.filter(item => !isSelected(item));
 }
 
 function moveItem(dx, dy) {
-  return function(item) {
+  return item => {
     item.center.x += dx;
     item.center.y += dy;
   };
 }
 function scaleItem(factor) {
-  return function(item) {
-    item.scale *= factor;
-  }
+  return item => item.scale *= factor;
 }
 
 // the foremost item covering the given point,
@@ -704,9 +693,7 @@ function setSelected(item, value) {
   // except for the topmost one.
   if (isNonTopPileMember(item)) {
     if (value) {
-      wholePile(item).forEach(function(i) {
-        selectedItemIDs.push(i.id);
-      });
+      wholePile(item).forEach(i => selectedItemIDs.push(i.id));
     }
     else {
       var pileIds = wholePile(item).map(i => i.id);
@@ -762,11 +749,11 @@ function cloneItem(item) {
 
 function cloneSelected() {
   var clones = [];
-  selectedItems().forEach(function(item) {
+  selectedItems().forEach(item => {
     setSelected(item, false);
     clones.push(cloneItem(item));
   });
-  clones.forEach(function(item) {setSelected(item, true);});
+  clones.forEach(item => setSelected(item, true));
   sendSyncData();
   repaint();
 }
@@ -779,10 +766,10 @@ function deleteSelected() {
 
 function flipSelected() {
   var allFaceDown = true;
-  selectedItems().forEach(function(item) {
+  selectedItems().forEach(item => {
     allFaceDown = allFaceDown && item.faceDown;
   });
-  selectedItems().forEach(function(item) {
+  selectedItems().forEach(item => {
     item.faceDown = !allFaceDown;
   });
   sendSyncData();
@@ -795,14 +782,14 @@ function shuffleSelected() {
   // Only proceed if all selected items have the same rounded size.
   var size = roundedItemSize(selected[0]);
   var allSameSize = true;
-  selected.forEach(function(i) {
+  selected.forEach(i => {
     if (!hasRoundedSize(size, i)) allSameSize = false;
   });
   if (!allSameSize) return;
   // Determine the position of the shuffled pile.
   var bottomOfLargestPile = null;
   var sizeOfLargestPile = 0;
-  selected.forEach(function(i) {
+  selected.forEach(i => {
     if (findPileNeighbour(i, 0) != null) return;
     var s = wholePile(i).length;
     if (s > sizeOfLargestPile) {
@@ -828,7 +815,7 @@ function shuffleSelected() {
 
 function arrayIncludes(a, e) {
   var result = false;
-  a.forEach(function(x) {
+  a.forEach(x => {
     if (x == e) {
       result = true;
     }
@@ -852,7 +839,7 @@ function claimPlayerArea() {
   if (selected.length == 1) {
     setSelected(selected[0], false);
     selected[0].locked = true;
-    selected[0].isPlayerArea = playerId;
+    selected[0].isPlayerArea = myPlayerId;
   }
   sendSyncData();
   repaint();
@@ -883,7 +870,7 @@ function expectedPileNeighbourPosition(item, d) {
 function isPileNeighbour(item, d, tolerance) {
   var size = roundedItemSize(item)
   var expected = expectedPileNeighbourPosition(item, d);
-  return function(other) {
+  return other => {
     var c0 = item != other;
     var c1 = hasRoundedSize(size, other);
     var c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
@@ -931,7 +918,7 @@ function traversePile(item, d, f) {
 
 function endOfPile(item, d) {
   var result = null;
-  traversePile(item, d, function(i) {result = i;});
+  traversePile(item, d, i => result = i);
   return result;
 }
 
@@ -946,7 +933,7 @@ function bottomOfPile(item) {
 function wholePile(item) {
   var bottom = bottomOfPile(item);
   var pile = [];
-  traversePile(bottom, 1, function(i) {pile.push(i);});
+  traversePile(bottom, 1, i => pile.push(i));
   return pile;
 }
 
@@ -976,7 +963,7 @@ function toggleNewItemDiv(on) {
   if (on==true) {
     // give url field the focus,
     // but do not let the current event propagate to it
-    setTimeout(function() {ui.newItemText.focus();}, 1);
+    setTimeout(() => ui.newItemText.focus(), 1);
   }
 }
 
@@ -1013,12 +1000,8 @@ function tryConnect() {
 function onMessage(e) {
   // read json string from the blob e.data
   var reader = new FileReader();
-  reader.onload = function() {
-    newData(reader.result);
-  }
-  reader.onerror = function() {
-    console.log("error reading received blob");
-  }
+  reader.onload = () => newData(reader.result);
+  reader.onerror = () => console.log("error reading received blob");
   reader.readAsText(e.data);
 }
 
