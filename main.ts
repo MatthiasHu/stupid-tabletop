@@ -173,7 +173,7 @@ function applyViewTransformation() {
 
 function onMouseDown(e) {
   const pos = canvasToTable(eventCoordinates(e));
-  if (e.buttons==1) {
+  if (e.buttons == 1) {
     lastDragPos = copyPoint(pos);
     let item = itemAt(pos.x, pos.y);
     if (item != null && item.locked) {
@@ -335,7 +335,7 @@ function addImage(url) {
   const img = new Image();
   img.onload = () => {
     console.log("loaded image");
-    img.loaded = true;
+    img["loaded"] = true;
     sortItems();
     repaint();
   }
@@ -386,7 +386,7 @@ function addItem(imgurl, center, scale) {
 // image of an item or null (if not yet loaded)
 function itemImage(item) {
   const img = images[item.imgurl];
-  if (img.loaded == true) {
+  if (img["loaded"] == true) {
     return img;
   }
   else {
@@ -952,12 +952,12 @@ function arrangeShuffledPile(pileItems, centerOfBottom, size) {
 
 
 // hide or show new item line
-function toggleNewItemDiv(on) {
-  if (on==null) {
-    on = ui.newItemDiv.style.display == "none";
+function toggleNewItemDiv(on?: boolean) {
+  if (on === undefined) {
+    on = ui.newItemDiv.style.display === "none";
   }
-  ui.newItemDiv.style.display = (on ? "flex" : "none");
-  if (on==true) {
+  ui.newItemDiv.style.display = on ? "flex" : "none";
+  if (on === true) {
     // give url field the focus,
     // but do not let the current event propagate to it
     setTimeout(() => ui.newItemText.focus(), 1);
