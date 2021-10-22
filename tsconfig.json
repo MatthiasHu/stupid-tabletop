@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+//    "strict": true,
+    "outFile": "./main.js"
+  },
+  "files": [
+    "main.ts"
+  ]
+}
