@@ -1,16 +1,16 @@
 "use strict";
 
 // address for stupid-sync connection
-var domain = "wss://schwubbl.de/stupid-sync-entry";
+const domain = "wss://schwubbl.de/stupid-sync-entry";
 
-var scaleSensitivity = 1.05;
+const scaleSensitivity = 1.05;
 
 // canvas element and drawing context
-var canvas;
-var context;
+let canvas;
+let context;
 
 // UI elements
-var ui =
+const ui =
   { body: null
   , tableNameText: null
   , tableNameButton: null
@@ -21,11 +21,11 @@ var ui =
   }
 
 //list of items selected for drag&drop
-var selectedItemIDs = [];
+let selectedItemIds = [];
 
 
 // the data to be synced: an array of items
-var items = [];
+let items = [];
 // each item must be of the form
 // { 
 // id: an auto-generated number
@@ -38,44 +38,45 @@ var items = [];
 // }
 // center is in table coordinates.
 // locked == true implies selected == false.
+// TODO: there is no selected.
 // locked == false implies isPlayerArea == null.
 
 // image data,
 // dictionary from urls to image objects
 // (each image object gets an extra "loaded" attribute when loaded)
-var images = {};
+const images = {};
 
 // last known mouse position as {x: ..., y: ...}
 // (in table coordinates)
 // or null (if mouse is not pressed or outside the canvas)
-var lastDragPos = null;
+let lastDragPos = null;
 
 // null, "items" or "table".
 // Set on mouse down event.
-var dragging = null;
+let dragging = null;
 
 // Send sync data on mouse up?
 // (Implies dragging == "items".)
-var itemsHaveBeenDragged = false;
+let itemsHaveBeenDragged = false;
 
 // Has data last been sent or received?
 // ("sent" or "received" or null.)
-var lastSyncEvent = null;
+let lastSyncEvent = null;
 
 // current view transformation (translation and scale)
-var transformation = {t: {x: 0, y: 0}, s: 1};
+let transformation = {t: {x: 0, y: 0}, s: 1};
 // [table coords] ---(scaling)---(translation)--- [canvas coords]
 
 // the websocket
-var socket = null;
+let socket = null;
 // null when there is no current connection or conntection attempt
 
 // Randomly generated identifier for this player.
-var myPlayerId = "player" + Math.floor(Math.random()*1000000);
+const myPlayerId = "player" + Math.floor(Math.random()*1000000);
 
 
 function onLoad() {
-  var get = id => document.getElementById(id);
+  const get = id => document.getElementById(id);
 
   canvas = get("bigcanvas");
   context = canvas.getContext("2d");
@@ -116,10 +117,10 @@ function onLoad() {
 }
 
 function tableNameFromURL() {
-  var table = "default";
-  var equations = window.location.search.substring(1).split("&");
+  let table = "default";
+  const equations = window.location.search.substring(1).split("&");
   equations.forEach(eq => {
-    var pair = eq.split("=");
+    const pair = eq.split("=");
     if (pair[0] == "table") {
       table = decodeURIComponent(pair[1]);
     }
@@ -130,13 +131,13 @@ function tableNameFromURL() {
 // Center the view on the origin of table coordinates,
 // using the current canvas size.
 function centerViewOn(p) {
-  var s = transformation.s;
+  const s = transformation.s;
   transformation.t.x = canvas.width /2 - p.x*s;
   transformation.t.y = canvas.height/2 - p.y*s;
 }
 
 function onResize() {
-  var oldCenter =
+  const oldCenter =
     canvasToTable({x: canvas.width/2, y: canvas.height/2});
   setCanvasResolution();
   centerViewOn(oldCenter);
@@ -149,7 +150,7 @@ function setCanvasResolution() {
 }
 
 function repaint() {
-  var myPlayerAreas =
+  const myPlayerAreas =
     items.filter(item => item.isPlayerArea == myPlayerId);
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -171,10 +172,10 @@ function applyViewTransformation() {
 // input handling
 
 function onMouseDown(e) {
-  var pos = canvasToTable(eventCoordinates(e));
+  const pos = canvasToTable(eventCoordinates(e));
   if (e.buttons==1) {
     lastDragPos = copyPoint(pos);
-    var item = itemAt(pos.x, pos.y);
+    let item = itemAt(pos.x, pos.y);
     if (item != null && item.locked) {
       item = null;
     }
@@ -203,17 +204,17 @@ function onMouseDown(e) {
   }
 }
 function onDblClick(e) {
-  var pos = canvasToTable(eventCoordinates(e));
-  var item = itemAt(pos.x, pos.y);
+  const pos = canvasToTable(eventCoordinates(e));
+  const item = itemAt(pos.x, pos.y);
   toggleLocked(item);
 }
 function onMouseMove(e) {
-  var pos = canvasToTable(eventCoordinates(e));
+  const pos = canvasToTable(eventCoordinates(e));
   if (lastDragPos != null) {
-    var dx = pos.x - lastDragPos.x;
-    var dy = pos.y - lastDragPos.y;
+    const dx = pos.x - lastDragPos.x;
+    const dy = pos.y - lastDragPos.y;
     if (dragging == "items") {
-      var selected = selectedItems();
+      const selected = selectedItems();
       selected.forEach(moveItem(dx, dy));
       if (selected.length > 0) {
         itemsHaveBeenDragged = true;
@@ -238,9 +239,9 @@ function onMouseUp(e) {
 }
 function onWheel(e) {
   e.preventDefault();
-  var pos = canvasToTable(eventCoordinates(e));
-  var delta = wheelEventDelta(e);
-  var factor = Math.pow(scaleSensitivity, -delta);
+  const pos = canvasToTable(eventCoordinates(e));
+  const delta = wheelEventDelta(e);
+  const factor = Math.pow(scaleSensitivity, -delta);
   if (e.shiftKey) {
     selectedItems().forEach(scaleItem(factor));
     sendSyncData();
@@ -284,7 +285,7 @@ function onKeyDown(e) {
 // convert page coordinates of an event to
 // canvas-relative coordinates
 function eventCoordinates(e) {
-  var pos =
+  const pos =
     { x: e.pageX - canvas.offsetLeft
     , y: e.pageY - canvas.offsetTop };
   return pos;
@@ -292,12 +293,12 @@ function eventCoordinates(e) {
 
 // convert between canvas and table coordinates
 function canvasToTable(p) {
-  var t = transformation;
+  const t = transformation;
   return { x: (p.x-t.t.x)/t.s
          , y: (p.y-t.t.y)/t.s };
 }
 function tableToCanvas(p) {
-  var t = transformation;
+  const t = transformation;
   return { x: p.x*t.s + t.t.x
          , y: p.y*t.s + t.t.y };
 }
@@ -305,7 +306,7 @@ function tableToCanvas(p) {
 function finishDrag() {
   if (dragging == "items") {
     console.log("finishing item drag");
-    var selected = selectedItems();
+    const selected = selectedItems();
     if (selected.length == 1) {
       if (potentiallyPutOnPile(selected[0])) {
         console.log("(put on pile)");
@@ -321,9 +322,9 @@ function finishDrag() {
 // scale the view by a factor
 // with a fixed reference point (in table coordinates)
 function onScale(factor, ref) {
-  var olds = transformation.s;
+  const olds = transformation.s;
   transformation.s *= factor;
-  var news = transformation.s;
+  const news = transformation.s;
   transformation.t.x += ref.x * (olds-news);
   transformation.t.y += ref.y * (olds-news);
   repaint();
@@ -331,7 +332,7 @@ function onScale(factor, ref) {
 
 // add an image to the dictionary and load its data
 function addImage(url) {
-  var img = new Image();
+  const img = new Image();
   img.onload = () => {
     console.log("loaded image");
     img.loaded = true;
@@ -349,15 +350,15 @@ function ensureItemImage(item) {
   }
 }
 
-function isIdFree(id) {
-  var free = true;
-  items.forEach(e => {if (e.id === id) free = false;});
+function isItemIdFree(id) {
+  let free = true;
+  items.forEach(item => {if (item.id === id) free = false;});
   return free;
 }
 
-function newID() {
-  var id = Math.floor(Math.random()*1000000);
-  while (!isIdFree(id)) {
+function newItemId() {
+  let id = Math.floor(Math.random()*1000000);
+  while (!isItemIdFree(id)) {
     id ++;
   }
 
@@ -366,9 +367,9 @@ function newID() {
 
 // add item to items array (and also return it)
 function addItem(imgurl, center, scale) {
-  var id = newID();
+  const id = newItemId();
 
-  var item =
+  const item =
     { id: id
     , imgurl: imgurl
     , center: copyPoint(center)
@@ -384,7 +385,7 @@ function addItem(imgurl, center, scale) {
 
 // image of an item or null (if not yet loaded)
 function itemImage(item) {
-  var img = images[item.imgurl];
+  const img = images[item.imgurl];
   if (img.loaded == true) {
     return img;
   }
@@ -395,8 +396,8 @@ function itemImage(item) {
 
 // size of an item as {w: ..., h: ...}
 function itemSize(item) {
-  var img = itemImage(item);
-  var s = item.scale;
+  const img = itemImage(item);
+  const s = item.scale;
   if (img != null) {
     return {w: img.width*s, h: img.height*s};
   }
@@ -411,20 +412,20 @@ function itemSize(item) {
 function itemSizeMeasure(item) {
   // Use rounded size to respect piling compatibility
   // and sort by x coordinate for equal size.
-  var size = roundedItemSize(item);
+  const size = roundedItemSize(item);
   return size.w * size.h - 0.0001 * item.center.x;
 }
 
 function drawItem(item, myPlayerAreas) {
-  var img = itemImage(item);
-  var size = itemSize(item);
-  var x = item.center.x - size.w/2;
-  var y = item.center.y - size.h/2;
+  const img = itemImage(item);
+  const size = itemSize(item);
+  const x = item.center.x - size.w/2;
+  const y = item.center.y - size.h/2;
   if (!item.faceDown) {
     drawItemFaceUp(img, x, y, size);
   }
   else {
-    var transparent = false;
+    let transparent = false;
     myPlayerAreas.forEach(area => {
       if (itemIsContainedIn(item, area)) {
         transparent = true;
@@ -577,27 +578,25 @@ function removeDuplictes() {
 // called when new sync data is recieved
 function newData(json) {
   if (json.length == 0) json = "[]";
-  var newItems = JSON.parse(json);
+  const newItems = JSON.parse(json);
   // TODO: check that newItems is an array of items
   lastSyncEvent = "received";
   //if (dragging == "items") {
   //  dragging = null;
   //  itemsHaveBeenDragged = false;
   //}
-  var resendLater = false;
   // do not accept movement of selected items while dragging
-  if (selectedItemIDs !== [] && dragging == "items") {
-    resendLater = true;
+  if (dragging == "items") {
     newItems.forEach(newItem => {
       if (isSelected(newItem)) {
-        newItem.center = itemByID(newItem.id).center;
+        newItem.center = itemById(newItem.id).center;
       }
     })
   }
 
   newItems.forEach(i => { 
     if (i.id === undefined) {
-      i.id = newID();
+      i.id = newItemId();
     }
   });
   
@@ -617,8 +616,8 @@ function sortItems() {
   items.sort(comparing(itemSizeMeasure));
 }
 
-function itemByID(id) {
-  var foundItems = items.filter(i => i.id === id);
+function itemById(id) {
+  const foundItems = items.filter(i => i.id === id);
   if (foundItems === [])
     return {}
   else
@@ -647,9 +646,8 @@ function scaleItem(factor) {
 // or null
 function itemAt(x, y) {
   // search items from front to back
-  var i;
-  for (i = items.length-1; i>=0; i--) {
-    var item = items[i];
+  for (let i = items.length-1; i>=0; i--) {
+    const item = items[i];
     if (itemCovers(item, x, y)) {
       return item;
     }
@@ -659,9 +657,9 @@ function itemAt(x, y) {
 
 // does the item contain the point?
 function itemCovers(item, x, y) {
-  var size = itemSize(item);
-  var x_rel = x - item.center.x;
-  var y_rel = y - item.center.y;
+  const size = itemSize(item);
+  const x_rel = x - item.center.x;
+  const y_rel = y - item.center.y;
   if ( x_rel < -size.w/2 || x_rel >= size.w/2 ||
        y_rel < -size.h/2 || y_rel >= size.h/2 ) {
     return false;
@@ -672,19 +670,19 @@ function itemCovers(item, x, y) {
 }
 
 function itemIsContainedIn(inner, outer) {
-  var s0 = itemSize(inner);
-  var s1 = itemSize(outer);
-  var dx = inner.center.x - outer.center.x;
-  var dy = inner.center.y - outer.center.y;
-  var dw = s1.w - s0.w;
-  var dh = s1.h - s0.h;
+  const s0 = itemSize(inner);
+  const s1 = itemSize(outer);
+  const dx = inner.center.x - outer.center.x;
+  const dy = inner.center.y - outer.center.y;
+  const dw = s1.w - s0.w;
+  const dh = s1.h - s0.h;
   return ( dx > -dw/2 && dx < dw/2 && dy > -dh/2 && dy < dh/2 );
 }
 
 // selecting items
 
 function deselectAll() {
-  selectedItemIDs = [];
+  selectedItemIds = [];
 }
 
 function setSelected(item, value) {
@@ -693,26 +691,26 @@ function setSelected(item, value) {
   // except for the topmost one.
   if (isNonTopPileMember(item)) {
     if (value) {
-      wholePile(item).forEach(i => selectedItemIDs.push(i.id));
+      wholePile(item).forEach(i => selectedItemIds.push(i.id));
     }
     else {
-      var pileIds = wholePile(item).map(i => i.id);
-      selectedItemIDs = selectedItemIDs.filter(i => !pileIds.includes(i));
+      const pileIds = wholePile(item).map(i => i.id);
+      selectedItemIds = selectedItemIds.filter(i => !pileIds.includes(i));
     }
   }
   else {
     if (value) {
-      selectedItemIDs.push(item.id);
+      selectedItemIds.push(item.id);
     }
     else {
-      selectedItemIDs = selectedItemIDs.filter(i => i !== item.id);
+      selectedItemIds = selectedItemIds.filter(i => i !== item.id);
     }
   }
 }
 
 function isSelected(item)
 {
-  return selectedItemIDs.includes(item.id);
+  return selectedItemIds.includes(item.id);
 }
 
 function toggleSelected(item) {
@@ -740,7 +738,7 @@ function toggleLocked(item) {
 }
 
 function cloneItem(item) {
-  var clone = addItem(
+  const clone = addItem(
       item.imgurl
     , {x: item.center.x + 20, y: item.center.y + 20}
     , item.scale );
@@ -748,7 +746,7 @@ function cloneItem(item) {
 }
 
 function cloneSelected() {
-  var clones = [];
+  const clones = [];
   selectedItems().forEach(item => {
     setSelected(item, false);
     clones.push(cloneItem(item));
@@ -765,7 +763,7 @@ function deleteSelected() {
 }
 
 function flipSelected() {
-  var allFaceDown = true;
+  let allFaceDown = true;
   selectedItems().forEach(item => {
     allFaceDown = allFaceDown && item.faceDown;
   });
@@ -777,27 +775,27 @@ function flipSelected() {
 }
 
 function shuffleSelected() {
-  var selected = selectedItems();
+  const selected = selectedItems();
   if (selected.length == 0) return;
   // Only proceed if all selected items have the same rounded size.
-  var size = roundedItemSize(selected[0]);
-  var allSameSize = true;
+  const size = roundedItemSize(selected[0]);
+  let allSameSize = true;
   selected.forEach(i => {
     if (!hasRoundedSize(size, i)) allSameSize = false;
   });
   if (!allSameSize) return;
   // Determine the position of the shuffled pile.
-  var bottomOfLargestPile = null;
-  var sizeOfLargestPile = 0;
+  let bottomOfLargestPile = null;
+  let sizeOfLargestPile = 0;
   selected.forEach(i => {
     if (findPileNeighbour(i, 0) != null) return;
-    var s = wholePile(i).length;
+    const s = wholePile(i).length;
     if (s > sizeOfLargestPile) {
       bottomOfLargestPile = i;
       sizeOfLargestPile = s;
     }
   });
-  var pos = null;
+  let pos = null;
   if (bottomOfLargestPile == null) {
     pos = copyPoint(selected[0].center);
   }
@@ -814,7 +812,7 @@ function shuffleSelected() {
 }
 
 function arrayIncludes(a, e) {
-  var result = false;
+  let result = false;
   a.forEach(x => {
     if (x == e) {
       result = true;
@@ -825,17 +823,16 @@ function arrayIncludes(a, e) {
 
 // Fischer-Yates-shuffle
 function shuffleArray(a) {
-  var i;
-  for (i = a.length-1; i>=0; i--) {
-    var j = Math.floor(Math.random() * (i+1));
-    var tmp = a[i];
+  for (let i = a.length-1; i>=0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    const tmp = a[i];
     a[i] = a[j];
     a[j] = tmp;
   }
 }
 
 function claimPlayerArea() {
-  var selected = selectedItems();
+  const selected = selectedItems();
   if (selected.length == 1) {
     setSelected(selected[0], false);
     selected[0].locked = true;
@@ -848,34 +845,34 @@ function claimPlayerArea() {
 // piling related stuff
 
 function roundedItemSize(item) {
-  var s0 = itemSize(item);
+  const s0 = itemSize(item);
   return {w: Math.round(s0.w), h: Math.round(s0.h)};
 }
 
 // Two items can only go on the same pile
 // if they have the same rounded size.
 function hasRoundedSize(roundedSize, item) {
-  var s0 = roundedSize;
-  var s1 = roundedItemSize(item);
+  const s0 = roundedSize;
+  const s1 = roundedItemSize(item);
   return s0.w == s1.w && s0.h == s1.h;
 }
 
 function expectedPileNeighbourPosition(item, d) {
-  var size = roundedItemSize(item)
-  var dx = size.w * 0.25 * d;
-  var dy = 0;
+  const size = roundedItemSize(item)
+  const dx = size.w * 0.25 * d;
+  const dy = 0;
   return {x: item.center.x + dx, y: item.center.y + dy};
 }
 
 function isPileNeighbour(item, d, tolerance) {
-  var size = roundedItemSize(item)
-  var expected = expectedPileNeighbourPosition(item, d);
+  const size = roundedItemSize(item)
+  const expected = expectedPileNeighbourPosition(item, d);
   return other => {
-    var c0 = item != other;
-    var c1 = hasRoundedSize(size, other);
-    var c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
-    var c3 = Math.abs(other.center.y - expected.y) < size.h * tolerance;
-    var c4 = other.locked == false;
+    const c0 = item != other;
+    const c1 = hasRoundedSize(size, other);
+    const c2 = Math.abs(other.center.x - expected.x) < size.w * tolerance;
+    const c3 = Math.abs(other.center.y - expected.y) < size.h * tolerance;
+    const c4 = other.locked == false;
     // console.log("-- " + c0 + " " + c1 + " " + c2 + " " + c3);
     return c0 && c1 && c2 && c3 && c4;
   }
@@ -883,7 +880,7 @@ function isPileNeighbour(item, d, tolerance) {
 
 // Find left (d=-1) or right (d=1) neighbour in a pile.
 function findPileNeighbour(item, d, tolerance=0.01) {
-  var neighs = items.filter(isPileNeighbour(item, d, tolerance));
+  const neighs = items.filter(isPileNeighbour(item, d, tolerance));
   if (neighs.length == 0) {
     return null;
   }
@@ -893,14 +890,14 @@ function findPileNeighbour(item, d, tolerance=0.01) {
 }
 
 function potentiallyPutOnPile(item) {
-  var found = findPileNeighbour(item, -1, 0.25);
+  const found = findPileNeighbour(item, -1, 0.25);
   if (found == null) {
     return false;
   }
   // Temporarily lock the item, so it does not count for the pile.
   // (Sorry for that.)
   item.locked = true;
-  var topmost = topOfPile(found);
+  const topmost = topOfPile(found);
   item.locked = false;
   item.center = expectedPileNeighbourPosition(topmost, 1);
   return true;
@@ -909,7 +906,7 @@ function potentiallyPutOnPile(item) {
 // Apply funciton f to the items in a pile,
 // starting at the given item, going in direction d.
 function traversePile(item, d, f) {
-  var i = item;
+  let i = item;
   while (i != null) {
     f(i);
     i = findPileNeighbour(i, d);
@@ -917,7 +914,7 @@ function traversePile(item, d, f) {
 }
 
 function endOfPile(item, d) {
-  var result = null;
+  let result = null;
   traversePile(item, d, i => result = i);
   return result;
 }
@@ -931,8 +928,8 @@ function bottomOfPile(item) {
 }
 
 function wholePile(item) {
-  var bottom = bottomOfPile(item);
-  var pile = [];
+  const bottom = bottomOfPile(item);
+  const pile = [];
   traversePile(bottom, 1, i => pile.push(i));
   return pile;
 }
@@ -942,9 +939,9 @@ function isNonTopPileMember(item) {
 }
 
 function arrangeShuffledPile(pileItems, centerOfBottom, size) {
-  var center = copyPoint(centerOfBottom);
+  let center = copyPoint(centerOfBottom);
   center.y += 0.5 * size.h;
-  for (var i = 0; i < pileItems.length; i++) {
+  for (let i = 0; i < pileItems.length; i++) {
     // center.x += 0.1 * (Math.random()-0.5) * size.w;
     // center.y += 0.1 * (Math.random()-0.5) * size.h;
     pileItems[i].center.x = center.x;
@@ -969,7 +966,7 @@ function toggleNewItemDiv(on) {
 
 // user clicked add new item button
 function onAddNewItem() {
-  var imgurl = ui.newItemText.value;
+  const imgurl = ui.newItemText.value;
   ui.newItemText.value = "";
   toggleNewItemDiv(false);
   addItem(imgurl, {x: 0, y: 0}, 1);
@@ -989,7 +986,7 @@ function tryConnect() {
   if (socket != null) {
     disconnect();
   }
-  var url = domain + "/table-" + ui.tableNameText.value;
+  const url = domain + "/table-" + ui.tableNameText.value;
   socket = new WebSocket(url);
   socket.onclose = disconnect;
   socket.onerror = disconnect;
@@ -999,7 +996,7 @@ function tryConnect() {
 
 function onMessage(e) {
   // read json string from the blob e.data
-  var reader = new FileReader();
+  const reader = new FileReader();
   reader.onload = () => newData(reader.result);
   reader.onerror = () => console.log("error reading received blob");
   reader.readAsText(e.data);
