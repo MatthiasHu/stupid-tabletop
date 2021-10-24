@@ -6,8 +6,8 @@ const domain = "wss://schwubbl.de/stupid-sync-entry";
 const scaleSensitivity = 1.05;
 
 // canvas element and drawing context
-let canvas;
-let context;
+let canvas: HTMLCanvasElement;
+let context: CanvasRenderingContext2D;
 
 // UI elements
 const ui =
@@ -20,40 +20,41 @@ const ui =
   , notConnectedLabel: null
   }
 
-//list of items selected for drag&drop
-let selectedItemIds = [];
+type ItemId = number;
 
+//list of items selected for drag&drop
+let selectedItemIds: ItemId[] = [];
+
+type PlayerId = string;
+
+type Point = {x: number, y: number};
+
+type Item =
+  { id: ItemId
+  , imgurl: string
+  , center: Point
+  , scale: number
+  , locked: boolean
+  , faceDown: boolean
+  , isPlayerArea: null | PlayerId
+  }
+// locked == false implies isPlayerArea == null.
 
 // the data to be synced: an array of items
-let items = [];
-// each item must be of the form
-// { 
-// id: an auto-generated number
-// , imgurl: <a string>
-// , center: {x: ..., y: ...}
-// , scale: ...
-// , locked: <a bool>
-// , faceDown: <a bool>
-// , isPlayerArea: <null or a player id>
-// }
-// center is in table coordinates.
-// locked == true implies selected == false.
-// TODO: there is no selected.
-// locked == false implies isPlayerArea == null.
+let items: Item[] = [];
 
 // image data,
 // dictionary from urls to image objects
 // (each image object gets an extra "loaded" attribute when loaded)
-const images = {};
+const images: Map<string, HTMLImageElement> = new Map();
 
-// last known mouse position as {x: ..., y: ...}
+// last known mouse position
 // (in table coordinates)
 // or null (if mouse is not pressed or outside the canvas)
-let lastDragPos = null;
+let lastDragPos: Point | null = null;
 
-// null, "items" or "table".
 // Set on mouse down event.
-let dragging = null;
+let dragging: null | "items" | "table" = null;
 
 // Send sync data on mouse up?
 // (Implies dragging == "items".)
@@ -78,7 +79,7 @@ const myPlayerId = "player" + Math.floor(Math.random()*1000000);
 function onLoad() {
   const get = id => document.getElementById(id);
 
-  canvas = get("bigcanvas");
+  canvas = get("bigcanvas") as HTMLCanvasElement;
   context = canvas.getContext("2d");
 
   ui.body = get("body");
@@ -340,12 +341,12 @@ function addImage(url) {
     repaint();
   }
   img.src = url;
-  images[url] = img;
+  images.set(url, img);
 }
 
 // add image if missing
 function ensureItemImage(item) {
-  if (images[item.imgurl] == null) {
+  if (!images.has(item.imgurl)) {
     addImage(item.imgurl);
   }
 }
@@ -376,7 +377,8 @@ function addItem(imgurl, center, scale) {
     , scale: scale
     , selected: false
     , locked: false
-    , faceDown: false };
+    , faceDown: false
+    , isPlayerArea: null };
   items.push(item);
   ensureItemImage(item);
   sortItems();
@@ -385,7 +387,10 @@ function addItem(imgurl, center, scale) {
 
 // image of an item or null (if not yet loaded)
 function itemImage(item) {
-  const img = images[item.imgurl];
+  if (!images.has(item.imgurl)) {
+    return null;
+  }
+  const img = images.get(item.imgurl);
   if (img["loaded"] == true) {
     return img;
   }
@@ -590,6 +595,7 @@ function newData(json) {
     newItems.forEach(newItem => {
       if (isSelected(newItem)) {
         newItem.center = itemById(newItem.id).center;
+        // TODO: what if item is not found?
       }
     })
   }
@@ -616,10 +622,10 @@ function sortItems() {
   items.sort(comparing(itemSizeMeasure));
 }
 
-function itemById(id) {
+function itemById(id): Item | null {
   const foundItems = items.filter(i => i.id === id);
-  if (foundItems === [])
-    return {}
+  if (foundItems.length == 0)
+    return null;
   else
     return foundItems[0];
 }
