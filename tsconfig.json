@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
-//    "strict": true,
-    "noImplicitAny": true,
-
+    "strict": true,
     "target": "es2016",
     "outFile": "./main.js"
   },

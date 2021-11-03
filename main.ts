@@ -83,7 +83,12 @@ function onLoad() {
   const get = (id: string) => document.getElementById(id);
 
   canvas = get("bigcanvas") as HTMLCanvasElement;
-  context = canvas.getContext("2d");
+  const c = canvas.getContext("2d");
+  if (c === null) {
+    console.log("canvas.getContext(\"2d\") === null");
+    return;
+  }
+  context = c;
 
   ui =
     { tableNameText: get("table-name-text") as HTMLInputElement
@@ -211,7 +216,9 @@ function onMouseDown(e: MouseEvent) {
 function onDblClick(e: MouseEvent) {
   const pos = canvasToTable(eventCoordinates(e));
   const item = itemAt(pos);
-  toggleLocked(item);
+  if (item !== null) {
+    toggleLocked(item);
+  }
 }
 function onMouseMove(e: MouseEvent) {
   const pos = canvasToTable(eventCoordinates(e));
@@ -392,10 +399,10 @@ function addItem(imgurl: string, center: Point, scale: number): Item {
 
 // image of an item or null (if not yet loaded)
 function itemImage(item: Item): HTMLImageElement | null {
-  if (!images.has(item.imgurl)) {
+  const img = images.get(item.imgurl);
+  if (img === undefined) {
     return null;
   }
-  const img = images.get(item.imgurl);
   if (img.loaded == true) {
     return img.image;
   }
@@ -459,8 +466,8 @@ function drawItem(item: Item, myPlayerAreas: Item[]) {
   }
 }
 
-function drawItemFaceUp(img: HTMLImageElement, pos: Point, size: Size) {
-  if (img != null) {
+function drawItemFaceUp(img: HTMLImageElement | null, pos: Point, size: Size) {
+  if (img !== null) {
     context.drawImage(img, pos.x, pos.y, size.w, size.h);
   }
   else {
@@ -598,8 +605,10 @@ function newData(json: string) {
   if (dragging == "items") {
     newItems.forEach(newItem => {
       if (isSelected(newItem)) {
-        newItem.center = itemById(newItem.id).center;
-        // TODO: what if item is not found?
+        const oldItem = itemById(newItem.id);
+        if (oldItem !== null) {
+          newItem.center = oldItem.center;
+        }
       }
     })
   }
@@ -797,6 +806,7 @@ function shuffleSelected() {
   let bottomOfLargestPile: Item | null = null;
   let sizeOfLargestPile = 0;
   selected.forEach(i => {
+    // TODO: check that i is the the bottom!?
     const s = wholePile(i).length;
     if (s > sizeOfLargestPile) {
       bottomOfLargestPile = i;
@@ -808,6 +818,9 @@ function shuffleSelected() {
     pos = copyPoint(selected[0].center);
   }
   else {
+    // Error here related to:
+    // https://github.com/Microsoft/TypeScript/issues/11498
+    console.log("this is happening");
     pos = copyPoint(bottomOfLargestPile.center);
   }
   // Shuffle and arrange.
@@ -918,8 +931,8 @@ function potentiallyPutOnPile(item: Item): boolean {
 // Apply funciton f to the items in a pile,
 // starting at the given item, going in direction d.
 function traversePile(item: Item, d: OneDimDirection, f: (i: Item) => void) {
-  let i = item;
-  while (i != null) {
+  let i: Item | null = item;
+  while (i !== null) {
     f(i);
     i = findPileNeighbour(i, d);
   }
