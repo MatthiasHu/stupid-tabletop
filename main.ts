@@ -10,15 +10,15 @@ let canvas: HTMLCanvasElement;
 let context: CanvasRenderingContext2D;
 
 // UI elements
-const ui =
-  { body: null
-  , tableNameText: null
-  , tableNameButton: null
-  , newItemDiv: null
-  , newItemText: null
-  , newItemButton: null
-  , notConnectedLabel: null
-  }
+type UI =
+  { tableNameText: HTMLInputElement
+  , tableNameButton: HTMLButtonElement
+  , newItemDiv: HTMLDivElement
+  , newItemText: HTMLInputElement
+  , newItemButton: HTMLButtonElement
+  , notConnectedLabel: HTMLDivElement
+  };
+let ui: UI;
 
 type ItemId = number;
 
@@ -28,6 +28,10 @@ let selectedItemIds: ItemId[] = [];
 type PlayerId = string;
 
 type Point = {x: number, y: number};
+// Should we use separate point types for separete coordinate systems?
+// (TypeScript has no "newtype"s.)
+
+type Size = {w: number, h: number};
 
 type Item =
   { id: ItemId
@@ -58,37 +62,37 @@ let dragging: null | "items" | "table" = null;
 
 // Send sync data on mouse up?
 // (Implies dragging == "items".)
-let itemsHaveBeenDragged = false;
+let itemsHaveBeenDragged: boolean = false;
 
 // Has data last been sent or received?
-// ("sent" or "received" or null.)
-let lastSyncEvent = null;
+let lastSyncEvent: "sent" | "received" | null = null;
 
 // current view transformation (translation and scale)
 let transformation = {t: {x: 0, y: 0}, s: 1};
 // [table coords] ---(scaling)---(translation)--- [canvas coords]
 
 // the websocket
-let socket = null;
 // null when there is no current connection or conntection attempt
+let socket: WebSocket | null = null;
 
 // Randomly generated identifier for this player.
 const myPlayerId = "player" + Math.floor(Math.random()*1000000);
 
 
 function onLoad() {
-  const get = id => document.getElementById(id);
+  const get = (id: string) => document.getElementById(id);
 
   canvas = get("bigcanvas") as HTMLCanvasElement;
   context = canvas.getContext("2d");
 
-  ui.body = get("body");
-  ui.tableNameText = get("table-name-text");
-  ui.tableNameButton = get("table-name-button");
-  ui.newItemDiv = get("new-item-div");
-  ui.newItemText = get("new-item-text");
-  ui.newItemButton = get("new-item-button");
-  ui.notConnectedLabel = get("not-connected-label");
+  ui =
+    { tableNameText: get("table-name-text") as HTMLInputElement
+    , tableNameButton: get("table-name-button") as HTMLButtonElement
+    , newItemDiv: get("new-item-div") as HTMLDivElement
+    , newItemText: get("new-item-text") as HTMLInputElement
+    , newItemButton: get("new-item-button") as HTMLButtonElement
+    , notConnectedLabel: get("not-connected-label") as HTMLDivElement
+    };
 
   ui.tableNameButton.onclick = tryConnect;
   ui.tableNameText.oninput = disconnect;
@@ -117,7 +121,7 @@ function onLoad() {
   tryConnect();
 }
 
-function tableNameFromURL() {
+function tableNameFromURL(): string {
   let table = "default";
   const equations = window.location.search.substring(1).split("&");
   equations.forEach(eq => {
@@ -131,7 +135,7 @@ function tableNameFromURL() {
 
 // Center the view on the origin of table coordinates,
 // using the current canvas size.
-function centerViewOn(p) {
+function centerViewOn(p: Point) {
   const s = transformation.s;
   transformation.t.x = canvas.width /2 - p.x*s;
   transformation.t.y = canvas.height/2 - p.y*s;
@@ -172,11 +176,11 @@ function applyViewTransformation() {
 
 // input handling
 
-function onMouseDown(e) {
+function onMouseDown(e: MouseEvent) {
   const pos = canvasToTable(eventCoordinates(e));
   if (e.buttons == 1) {
     lastDragPos = copyPoint(pos);
-    let item = itemAt(pos.x, pos.y);
+    let item = itemAt(pos);
     if (item != null && item.locked) {
       item = null;
     }
@@ -204,12 +208,12 @@ function onMouseDown(e) {
     finishDrag();
   }
 }
-function onDblClick(e) {
+function onDblClick(e: MouseEvent) {
   const pos = canvasToTable(eventCoordinates(e));
-  const item = itemAt(pos.x, pos.y);
+  const item = itemAt(pos);
   toggleLocked(item);
 }
-function onMouseMove(e) {
+function onMouseMove(e: MouseEvent) {
   const pos = canvasToTable(eventCoordinates(e));
   if (lastDragPos != null) {
     const dx = pos.x - lastDragPos.x;
@@ -230,15 +234,15 @@ function onMouseMove(e) {
   }
   lastDragPos = canvasToTable(eventCoordinates(e));
 }
-function onMouseOut(e) {
+function onMouseOut(e: MouseEvent) {
   finishDrag();
 }
-function onMouseUp(e) {
+function onMouseUp(e: MouseEvent) {
   if (e.buttons!=1) {
     finishDrag();
   }
 }
-function onWheel(e) {
+function onWheel(e: WheelEvent) {
   e.preventDefault();
   const pos = canvasToTable(eventCoordinates(e));
   const delta = wheelEventDelta(e);
@@ -252,14 +256,14 @@ function onWheel(e) {
     onScale(factor, pos);
   }
 }
-function wheelEventDelta(e) {
+function wheelEventDelta(e: WheelEvent): number {
   // TODO:
   // How to interpret e.deltaY (using e.deltaMode) in a sensible way,
   // and still scale items in predefined discrete steps (for piling)?
   return e.deltaY > 0 ? 3 : -3;
 }
 
-function onKeyDown(e) {
+function onKeyDown(e: KeyboardEvent) {
   if (e.key=="h") {
     window.open("help.txt");
   }
@@ -285,7 +289,7 @@ function onKeyDown(e) {
 
 // convert page coordinates of an event to
 // canvas-relative coordinates
-function eventCoordinates(e) {
+function eventCoordinates(e: MouseEvent): Point {
   const pos =
     { x: e.pageX - canvas.offsetLeft
     , y: e.pageY - canvas.offsetTop };
@@ -293,12 +297,12 @@ function eventCoordinates(e) {
 }
 
 // convert between canvas and table coordinates
-function canvasToTable(p) {
+function canvasToTable(p: Point): Point {
   const t = transformation;
   return { x: (p.x-t.t.x)/t.s
          , y: (p.y-t.t.y)/t.s };
 }
-function tableToCanvas(p) {
+function tableToCanvas(p: Point): Point {
   const t = transformation;
   return { x: p.x*t.s + t.t.x
          , y: p.y*t.s + t.t.y };
@@ -322,7 +326,7 @@ function finishDrag() {
 
 // scale the view by a factor
 // with a fixed reference point (in table coordinates)
-function onScale(factor, ref) {
+function onScale(factor: number, ref: Point) {
   const olds = transformation.s;
   transformation.s *= factor;
   const news = transformation.s;
@@ -332,7 +336,7 @@ function onScale(factor, ref) {
 }
 
 // add an image to the dictionary and load its data
-function addImage(url) {
+function addImage(url: string) {
   const image = new Image();
   const itemImage = {image: image, loaded: false};
   image.onload = () => {
@@ -346,19 +350,19 @@ function addImage(url) {
 }
 
 // add image if missing
-function ensureItemImage(item) {
+function ensureItemImage(item: Item) {
   if (!images.has(item.imgurl)) {
     addImage(item.imgurl);
   }
 }
 
-function isItemIdFree(id) {
+function isItemIdFree(id: ItemId): boolean {
   let free = true;
   items.forEach(item => {if (item.id === id) free = false;});
   return free;
 }
 
-function newItemId() {
+function newItemId(): ItemId {
   let id = Math.floor(Math.random()*1000000);
   while (!isItemIdFree(id)) {
     id ++;
@@ -368,18 +372,18 @@ function newItemId() {
 }
 
 // add item to items array (and also return it)
-function addItem(imgurl, center, scale) {
+function addItem(imgurl: string, center: Point, scale: number): Item {
   const id = newItemId();
 
-  const item =
+  const item: Item =
     { id: id
     , imgurl: imgurl
     , center: copyPoint(center)
     , scale: scale
-    , selected: false
     , locked: false
     , faceDown: false
-    , isPlayerArea: null };
+    , isPlayerArea: null
+    };
   items.push(item);
   ensureItemImage(item);
   sortItems();
@@ -387,7 +391,7 @@ function addItem(imgurl, center, scale) {
 }
 
 // image of an item or null (if not yet loaded)
-function itemImage(item) {
+function itemImage(item: Item): HTMLImageElement | null {
   if (!images.has(item.imgurl)) {
     return null;
   }
@@ -400,8 +404,7 @@ function itemImage(item) {
   }
 }
 
-// size of an item as {w: ..., h: ...}
-function itemSize(item) {
+function itemSize(item: Item): Size {
   const img = itemImage(item);
   const s = item.scale;
   if (img != null) {
@@ -415,20 +418,20 @@ function itemSize(item) {
 
 // a number representing the size of the item
 // (for sorting by size)
-function itemSizeMeasure(item) {
+function itemSizeMeasure(item: Item): number {
   // Use rounded size to respect piling compatibility
   // and sort by x coordinate for equal size.
   const size = roundedItemSize(item);
   return size.w * size.h - 0.0001 * item.center.x;
 }
 
-function drawItem(item, myPlayerAreas) {
+function drawItem(item: Item, myPlayerAreas: Item[]) {
   const img = itemImage(item);
   const size = itemSize(item);
-  const x = item.center.x - size.w/2;
-  const y = item.center.y - size.h/2;
+  const pos = { x: item.center.x - size.w/2
+              , y: item.center.y - size.h/2 };
   if (!item.faceDown) {
-    drawItemFaceUp(img, x, y, size);
+    drawItemFaceUp(img, pos, size);
   }
   else {
     let transparent = false;
@@ -438,68 +441,68 @@ function drawItem(item, myPlayerAreas) {
       }
     });
     if (transparent) {
-      drawItemFaceUp(img, x, y, size);
-      drawFaceDownReminder(x, y, size);
+      drawItemFaceUp(img, pos, size);
+      drawFaceDownReminder(pos, size);
     }
     else {
-      drawItemFaceDown(x, y, size);
+      drawItemFaceDown(pos, size);
     }
   }
   if (isSelected(item)) {
-    drawSelectionBorder(x, y, size);
+    drawSelectionBorder(pos, size);
   }
   if (item.isPlayerArea != null) {
-    drawPlayerAreaBorder(item, x, y, size);
+    drawPlayerAreaBorder(item, pos, size);
   }
   if (item.locked) {
     drawLockedItemBorder(item.center, size);
   }
 }
 
-function drawItemFaceUp(img, x, y, size) {
+function drawItemFaceUp(img: HTMLImageElement, pos: Point, size: Size) {
   if (img != null) {
-    context.drawImage(img, x, y, size.w, size.h);
+    context.drawImage(img, pos.x, pos.y, size.w, size.h);
   }
   else {
     context.fillStyle = "grey";
-    context.fillRect(x, y, size.w, size.h);
+    context.fillRect(pos.x, pos.y, size.w, size.h);
   }
 }
 
-function drawItemFaceDown(x, y, size) {
+function drawItemFaceDown(pos: Point, size: Size) {
   context.fillStyle = "black";
-  context.fillRect(x, y, size.w, size.h);
+  context.fillRect(pos.x, pos.y, size.w, size.h);
   context.lineWidth = 1;
   context.strokeStyle = "grey";
-  context.strokeRect(x, y, size.w, size.h);
+  context.strokeRect(pos.x, pos.y, size.w, size.h);
 }
 
-function drawFaceDownReminder(x, y, size) {
+function drawFaceDownReminder(pos: Point, size: Size) {
   context.fillStyle = "#0002";
-  context.fillRect(x, y, size.w, size.h);
+  context.fillRect(pos.x, pos.y, size.w, size.h);
 
-  function strokeInnerFrame(color, b) {
+  function strokeInnerFrame(color: string, b: number) {
     context.strokeStyle = color;
     context.lineWidth = b;
-    context.strokeRect(x+b/2, y+b/2, size.w-b, size.h-b);
+    context.strokeRect(pos.x+b/2, pos.y+b/2, size.w-b, size.h-b);
   }
   strokeInnerFrame("#000c", 5);
 
   context.lineWidth = 1;
   context.strokeStyle = "black";
-  context.strokeRect(x, y, size.w, size.h);
+  context.strokeRect(pos.x, pos.y, size.w, size.h);
 }
 
-function drawSelectionBorder(x, y, size) {
+function drawSelectionBorder(pos: Point, size: Size) {
   context.lineWidth = 3;
   context.strokeStyle = "#0088";
-  context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+  context.strokeRect(pos.x-2, pos.y-2, size.w+4, size.h+4);
   context.lineWidth = 2;
   context.strokeStyle = "#0ff";
-  context.strokeRect(x-2, y-2, size.w+4, size.h+4);
+  context.strokeRect(pos.x-2, pos.y-2, size.w+4, size.h+4);
 }
 
-function drawLockedItemBorder(center, size) {
+function drawLockedItemBorder(center: Point, size: Size) {
   const l = center.x - size.w/2;
   const r = center.x + size.w/2;
   const t = center.y - size.h/2;
@@ -511,7 +514,7 @@ function drawLockedItemBorder(center, size) {
   drawStitches({x: r, y: b}, {x: r, y: t}, stitchWidth);
 }
 
-function drawStitches(start, end, width) {
+function drawStitches(start: Point, end: Point, width: number) {
   const wantedSlope = 1.5;
   const wantedPeriod = 2 * width / wantedSlope;
   const d = {x: end.x - start.x, y: end.y - start.y};
@@ -536,7 +539,7 @@ function drawStitches(start, end, width) {
 }
 
 // unused
-function drawLockedItemBorder_old(cx, cy, size) {
+function drawLockedItemBorder_old(center: Point, size: Size) {
   const h = size.h;
   const w = size.w;
   const a = Math.sqrt(size.w * size.h) / 8;
@@ -545,18 +548,18 @@ function drawLockedItemBorder_old(cx, cy, size) {
   [-1, 1].forEach(sx => {
     [-1, 1].forEach(sy => {
       context.save();
-      context.translate(cx, cy);
+      context.translate(center.x, center.y);
       context.scale(sx, sy);
       context.translate(w/2, h/2);
       context.scale(a, a);
-      fillPolygon(context, [[0.2, 0.2], [-1, 0.2], [0.2, -1]]);
+      fillPolygon([[0.2, 0.2], [-1, 0.2], [0.2, -1]]);
       context.restore();
     });
   });
 }
 
 // unused
-function fillPolygon(context, vertices) {
+function fillPolygon(vertices: number[][]) {
   context.beginPath();
   context.moveTo(vertices[0][0], vertices[0][1]);
   for (let i = 1; i < vertices.length; i++) {
@@ -566,7 +569,7 @@ function fillPolygon(context, vertices) {
   context.fill();
 }
 
-function drawPlayerAreaBorder(item, x, y, size) {
+function drawPlayerAreaBorder(item: Item, pos: Point, size: Size) {
   context.lineWidth = 1;
   if (item.isPlayerArea == myPlayerId) {
     context.strokeStyle = "green";
@@ -574,7 +577,7 @@ function drawPlayerAreaBorder(item, x, y, size) {
   else {
     context.strokeStyle = "red";
   }
-  context.strokeRect(x, y, size.w, size.h);
+  context.strokeRect(pos.x, pos.y, size.w, size.h);
 }
 
 //removes all duplicates by id from items
@@ -582,9 +585,9 @@ function removeDuplictes() {
 }
 
 // called when new sync data is recieved
-function newData(json) {
+function newData(json: string) {
   if (json.length == 0) json = "[]";
-  const newItems = JSON.parse(json);
+  const newItems = JSON.parse(json) as Item[];
   // TODO: check that newItems is an array of items
   lastSyncEvent = "received";
   //if (dragging == "items") {
@@ -614,7 +617,7 @@ function newData(json) {
 }
 
 // utility function for sorting
-function comparing(feature) {
+function comparing<T>(feature: (element: T) => number): (a: T, b: T) => number {
   return (a, b) => feature(b) - feature(a);
 }
 
@@ -623,7 +626,7 @@ function sortItems() {
   items.sort(comparing(itemSizeMeasure));
 }
 
-function itemById(id): Item | null {
+function itemById(id: ItemId): Item | null {
   const foundItems = items.filter(i => i.id === id);
   if (foundItems.length == 0)
     return null;
@@ -632,30 +635,30 @@ function itemById(id): Item | null {
 }
 
 // array of only the currently selected items
-function selectedItems() {
+function selectedItems(): Item[] {
   return items.filter(isSelected);
 }
-function notSelectedItems() {
+function notSelectedItems(): Item[] {
   return items.filter(item => !isSelected(item));
 }
 
-function moveItem(dx, dy) {
+function moveItem(dx: number, dy: number): (item: Item) => void {
   return item => {
     item.center.x += dx;
     item.center.y += dy;
   };
 }
-function scaleItem(factor) {
+function scaleItem(factor: number): (item: Item) => void {
   return item => item.scale *= factor;
 }
 
 // the foremost item covering the given point,
 // or null
-function itemAt(x, y) {
+function itemAt(pos: Point): Item | null {
   // search items from front to back
   for (let i = items.length-1; i>=0; i--) {
     const item = items[i];
-    if (itemCovers(item, x, y)) {
+    if (itemCovers(item, pos)) {
       return item;
     }
   }
@@ -663,10 +666,10 @@ function itemAt(x, y) {
 }
 
 // does the item contain the point?
-function itemCovers(item, x, y) {
+function itemCovers(item: Item, pos: Point): boolean {
   const size = itemSize(item);
-  const x_rel = x - item.center.x;
-  const y_rel = y - item.center.y;
+  const x_rel = pos.x - item.center.x;
+  const y_rel = pos.y - item.center.y;
   if ( x_rel < -size.w/2 || x_rel >= size.w/2 ||
        y_rel < -size.h/2 || y_rel >= size.h/2 ) {
     return false;
@@ -676,7 +679,7 @@ function itemCovers(item, x, y) {
   return true;
 }
 
-function itemIsContainedIn(inner, outer) {
+function itemIsContainedIn(inner: Item, outer: Item): boolean {
   const s0 = itemSize(inner);
   const s1 = itemSize(outer);
   const dx = inner.center.x - outer.center.x;
@@ -692,7 +695,7 @@ function deselectAll() {
   selectedItemIds = [];
 }
 
-function setSelected(item, value) {
+function setSelected(item: Item, value: boolean) {
   if (item == null || item.locked) return;
   // Items in piles select and deselect together,
   // except for the topmost one.
@@ -715,12 +718,11 @@ function setSelected(item, value) {
   }
 }
 
-function isSelected(item)
-{
+function isSelected(item: Item): boolean {
   return selectedItemIds.includes(item.id);
 }
 
-function toggleSelected(item) {
+function toggleSelected(item: Item) {
   if (isSelected(item)) {
     setSelected(item, false);
   }
@@ -729,7 +731,7 @@ function toggleSelected(item) {
   }
 }
 
-function toggleLocked(item) {
+function toggleLocked(item: Item) {
   if (item == null) return;
   if (item.locked) {
     item.locked = false;
@@ -744,7 +746,7 @@ function toggleLocked(item) {
   repaint();
 }
 
-function cloneItem(item) {
+function cloneItem(item: Item): Item {
   const clone = addItem(
       item.imgurl
     , {x: item.center.x + 20, y: item.center.y + 20}
@@ -753,7 +755,7 @@ function cloneItem(item) {
 }
 
 function cloneSelected() {
-  const clones = [];
+  const clones: Item[] = [];
   selectedItems().forEach(item => {
     setSelected(item, false);
     clones.push(cloneItem(item));
@@ -792,10 +794,9 @@ function shuffleSelected() {
   });
   if (!allSameSize) return;
   // Determine the position of the shuffled pile.
-  let bottomOfLargestPile = null;
+  let bottomOfLargestPile: Item | null = null;
   let sizeOfLargestPile = 0;
   selected.forEach(i => {
-    if (findPileNeighbour(i, 0) != null) return;
     const s = wholePile(i).length;
     if (s > sizeOfLargestPile) {
       bottomOfLargestPile = i;
@@ -803,7 +804,7 @@ function shuffleSelected() {
     }
   });
   let pos = null;
-  if (bottomOfLargestPile == null) {
+  if (bottomOfLargestPile === null) {
     pos = copyPoint(selected[0].center);
   }
   else {
@@ -818,18 +819,19 @@ function shuffleSelected() {
   repaint();
 }
 
-function arrayIncludes(a, e) {
-  let result = false;
-  a.forEach(x => {
-    if (x == e) {
-      result = true;
-    }
-  });
-  return result;
-}
+// // unused
+// function arrayIncludes(a, e) {
+//   let result = false;
+//   a.forEach(x => {
+//     if (x == e) {
+//       result = true;
+//     }
+//   });
+//   return result;
+// }
 
 // Fischer-Yates-shuffle
-function shuffleArray(a) {
+function shuffleArray<T>(a: T[]) {
   for (let i = a.length-1; i>=0; i--) {
     const j = Math.floor(Math.random() * (i+1));
     const tmp = a[i];
@@ -851,28 +853,30 @@ function claimPlayerArea() {
 
 // piling related stuff
 
-function roundedItemSize(item) {
+function roundedItemSize(item: Item) {
   const s0 = itemSize(item);
   return {w: Math.round(s0.w), h: Math.round(s0.h)};
 }
 
 // Two items can only go on the same pile
 // if they have the same rounded size.
-function hasRoundedSize(roundedSize, item) {
+function hasRoundedSize(roundedSize: Size, item: Item): boolean {
   const s0 = roundedSize;
   const s1 = roundedItemSize(item);
   return s0.w == s1.w && s0.h == s1.h;
 }
 
-function expectedPileNeighbourPosition(item, d) {
+type OneDimDirection = -1 | 1;
+
+function expectedPileNeighbourPosition(item: Item, d: OneDimDirection): Point {
   const size = roundedItemSize(item)
   const dx = size.w * 0.25 * d;
   const dy = 0;
   return {x: item.center.x + dx, y: item.center.y + dy};
 }
 
-function isPileNeighbour(item, d, tolerance) {
-  const size = roundedItemSize(item)
+function isPileNeighbour(item: Item, d: OneDimDirection, tolerance: number): (other: Item) => boolean {
+  const size = roundedItemSize(item);
   const expected = expectedPileNeighbourPosition(item, d);
   return other => {
     const c0 = item != other;
@@ -886,7 +890,8 @@ function isPileNeighbour(item, d, tolerance) {
 }
 
 // Find left (d=-1) or right (d=1) neighbour in a pile.
-function findPileNeighbour(item, d, tolerance=0.01) {
+// TODO: handle all lines longer than 72 characters :-)
+function findPileNeighbour(item: Item, d: OneDimDirection, tolerance=0.01): Item | null {
   const neighs = items.filter(isPileNeighbour(item, d, tolerance));
   if (neighs.length == 0) {
     return null;
@@ -896,7 +901,7 @@ function findPileNeighbour(item, d, tolerance=0.01) {
   }
 }
 
-function potentiallyPutOnPile(item) {
+function potentiallyPutOnPile(item: Item): boolean {
   const found = findPileNeighbour(item, -1, 0.25);
   if (found == null) {
     return false;
@@ -912,7 +917,7 @@ function potentiallyPutOnPile(item) {
 
 // Apply funciton f to the items in a pile,
 // starting at the given item, going in direction d.
-function traversePile(item, d, f) {
+function traversePile(item: Item, d: OneDimDirection, f: (i: Item) => void) {
   let i = item;
   while (i != null) {
     f(i);
@@ -920,32 +925,32 @@ function traversePile(item, d, f) {
   }
 }
 
-function endOfPile(item, d) {
-  let result = null;
+function endOfPile(item: Item, d: OneDimDirection): Item {
+  let result = item;
   traversePile(item, d, i => result = i);
   return result;
 }
 
-function topOfPile(item) {
+function topOfPile(item: Item): Item {
   return endOfPile(item, 1);
 }
 
-function bottomOfPile(item) {
+function bottomOfPile(item: Item): Item {
   return endOfPile(item, -1);
 }
 
-function wholePile(item) {
+function wholePile(item: Item): Item[] {
   const bottom = bottomOfPile(item);
-  const pile = [];
+  const pile: Item[] = [];
   traversePile(bottom, 1, i => pile.push(i));
   return pile;
 }
 
-function isNonTopPileMember(item) {
+function isNonTopPileMember(item: Item): boolean {
   return findPileNeighbour(item, 1) != null;
 }
 
-function arrangeShuffledPile(pileItems, centerOfBottom, size) {
+function arrangeShuffledPile(pileItems: Item[], centerOfBottom: Point, size: Size) {
   let center = copyPoint(centerOfBottom);
   center.y += 0.5 * size.h;
   for (let i = 0; i < pileItems.length; i++) {
@@ -1001,10 +1006,13 @@ function tryConnect() {
   socket.onmessage = onMessage;
 }
 
-function onMessage(e) {
+function onMessage(e: MessageEvent) {
   // read json string from the blob e.data
   const reader = new FileReader();
-  reader.onload = () => newData(reader.result);
+  reader.onload = () => {
+    if (typeof reader.result !== "string") return;
+    newData(reader.result);
+  };
   reader.onerror = () => console.log("error reading received blob");
   reader.readAsText(e.data);
 }
@@ -1023,11 +1031,11 @@ function disconnect() {
   ui.tableNameButton.disabled = false;
 }
 
-function isConnecting(socket) {
-  return socket.readySttate == WebSocket.CONNECTING;
+function isConnecting(socket: WebSocket): boolean {
+  return socket.readyState == WebSocket.CONNECTING;
 }
-function isOpen(socket) {
-  return socket.readySttate == WebSocket.OPEN;
+function isOpen(socket: WebSocket) {
+  return socket.readyState == WebSocket.OPEN;
 }
 
 function discardSocket() {
@@ -1039,6 +1047,6 @@ function discardSocket() {
   socket = null;
 }
 
-function copyPoint(p) {
+function copyPoint(p: Point): Point {
   return {x: p.x, y: p.y};
 }
