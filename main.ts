@@ -43,10 +43,10 @@ type Item =
 // the data to be synced: an array of items
 let items: Item[] = [];
 
-// image data,
-// dictionary from urls to image objects
-// (each image object gets an extra "loaded" attribute when loaded)
-const images: Map<string, HTMLImageElement> = new Map();
+type ItemImage = {image: HTMLImageElement, loaded: boolean};
+
+// image data
+const images: Map<string, ItemImage> = new Map();
 
 // last known mouse position
 // (in table coordinates)
@@ -333,15 +333,16 @@ function onScale(factor, ref) {
 
 // add an image to the dictionary and load its data
 function addImage(url) {
-  const img = new Image();
-  img.onload = () => {
+  const image = new Image();
+  const itemImage = {image: image, loaded: false};
+  image.onload = () => {
     console.log("loaded image");
-    img["loaded"] = true;
+    itemImage.loaded = true;
     sortItems();
     repaint();
   }
-  img.src = url;
-  images.set(url, img);
+  image.src = url;
+  images.set(url, itemImage);
 }
 
 // add image if missing
@@ -391,8 +392,8 @@ function itemImage(item) {
     return null;
   }
   const img = images.get(item.imgurl);
-  if (img["loaded"] == true) {
-    return img;
+  if (img.loaded == true) {
+    return img.image;
   }
   else {
     return null;
