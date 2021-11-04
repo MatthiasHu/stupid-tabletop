@@ -792,6 +792,21 @@ function flipSelected() {
   repaint();
 }
 
+function maximumByComparing<T>(feature: (element: T) => number, array: T[]): T | null {
+  const result = array.reduce<{score: number | null, leader: T | null}>(
+    (acc, x) => {
+      const score = feature(x);
+      if (acc.score === null || feature(x) > acc.score) {
+        return {score: score, leader: x};
+      }
+      else {
+        return acc;
+      }
+    },
+    {score: null, leader: null});
+  return result.leader;
+}
+
 function shuffleSelected() {
   const selected = selectedItems();
   if (selected.length == 0) return;
@@ -803,24 +818,15 @@ function shuffleSelected() {
   });
   if (!allSameSize) return;
   // Determine the position of the shuffled pile.
-  let bottomOfLargestPile: Item | null = null;
-  let sizeOfLargestPile = 0;
-  selected.forEach(i => {
-    // TODO: check that i is the the bottom!?
-    const s = wholePile(i).length;
-    if (s > sizeOfLargestPile) {
-      bottomOfLargestPile = i;
-      sizeOfLargestPile = s;
-    }
-  });
+  const selectedBottoms =
+    selected.filter(i => findPileNeighbour(i, -1) === null);
+  const bottomOfLargestPile =
+    maximumByComparing(i => wholePile(i).length, selectedBottoms);
   let pos = null;
   if (bottomOfLargestPile === null) {
     pos = copyPoint(selected[0].center);
   }
   else {
-    // Error here related to:
-    // https://github.com/Microsoft/TypeScript/issues/11498
-    console.log("this is happening");
     pos = copyPoint(bottomOfLargestPile.center);
   }
   // Shuffle and arrange.
